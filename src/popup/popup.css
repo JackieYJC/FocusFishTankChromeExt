@@ -79,16 +79,17 @@ body {
   position: absolute; top: 262px; left: 0; right: 0;
   flex-direction: column; gap: 8px;
   padding: 12px 14px;
-  background: #0a1520;
+  background: rgba(10,21,32,0.88);
   border-top: 1px solid rgba(255,160,60,0.35);
   border-bottom: 1px solid rgba(255,160,60,0.35);
   color: #ffaa44;
   font: bold 11px monospace;
   z-index: 5;
+  backdrop-filter: blur(2px);
 }
 #debug-panel.visible { display: flex; }
-#debug-health-row, #debug-rate-row, #debug-accrual-row { display: flex; justify-content: space-between; }
-#debug-health-slider, #debug-rate-slider, #debug-accrual-slider { width: 100%; accent-color: #ffaa44; cursor: ew-resize; }
+#debug-health-row, #debug-rate-row, #debug-accrual-row, #debug-grow-row { display: flex; justify-content: space-between; }
+#debug-health-slider, #debug-rate-slider, #debug-accrual-slider, #debug-grow-slider { width: 100%; accent-color: #ffaa44; cursor: ew-resize; }
 
 #debug-coin-btns { display: flex; gap: 4px; flex-wrap: wrap; }
 .dbg-coin {

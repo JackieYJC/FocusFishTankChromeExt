@@ -2,13 +2,15 @@
 
 // ─── Fish ─────────────────────────────────────────────────────────────────────
 class Fish {
-  constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic', stage = 'fry', id, entering = false }) {
+  constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic', stage = 'fry', id, entering = false, growth = 0, foodGrowth = 0 }) {
     this.id = id ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
     this.x = x;
     this.y = y;
     this.tx = x;
     this.ty = y;
     this.enterFrames = entering ? 55 : 0;
+    this.growth    = growth;
+    this.foodGrowth = foodGrowth;
     this.maxSize = size;
     this.type  = type;
     this.stage = stage;
@@ -91,7 +93,15 @@ class Fish {
       this.tx = nearest.x;
       this.ty = nearest.y;
       this.wanderCD = 30;
-      if (nearestD < EAT) nearest.eat();
+      if (nearestD < EAT) {
+        nearest.eat();
+        // Food growth bonus (capped per stage so eating alone can't complete growth)
+        if ((this.stage === 'fry' || this.stage === 'juvenile') && this.foodGrowth < FOOD_GROWTH_CAP) {
+          const bonus = Math.min(FOOD_GROWTH_BONUS, FOOD_GROWTH_CAP - this.foodGrowth);
+          this.foodGrowth += bonus;
+          this.growth = Math.min(100, this.growth + bonus);
+        }
+      }
     } else {
       if (--this.wanderCD <= 0) {
         const m = this.size * 2;
@@ -111,6 +121,18 @@ class Fish {
       this.facing = dx > 0 ? 1 : -1;
     }
     this.y += Math.sin(this.phase * 0.7) * 0.25;
+
+    // Time-based growth (scales with focus score and growthSpeed multiplier)
+    if (this.stage === 'fry' || this.stage === 'juvenile') {
+      this.growth += (health / 100) * BASE_GROWTH_RATE * growthSpeed;
+      if (this.growth >= 100) {
+        this.stage    = this.stage === 'fry' ? 'juvenile' : 'adult';
+        this.growth    = 0;
+        this.foodGrowth = 0;
+        this._applyStageSize();
+        saveFish();
+      }
+    }
   }
 
   draw(ctx, health) {
@@ -533,7 +555,13 @@ const ripples = [];
 let debugMode = false;
 let hpReact        = 0.002; // exponential chase coefficient (per frame); slider shows value * 1000
 let coinAccrualMult = 1;    // debug multiplier for coin accrual speed
+let growthSpeed     = 1;    // debug multiplier for fish growth rate
 let lastCoins = null;       // track coin delta for animation; null = first poll (skip animation)
+
+// ─── Growth constants ──────────────────────────────────────────────────────────
+const BASE_GROWTH_RATE  = 100 / (8 * 60 * 60); // one full stage in ~8 min at 100% focus, 60 fps
+const FOOD_GROWTH_CAP   = 35;  // max growth points per stage that can come from eating
+const FOOD_GROWTH_BONUS = 5;   // growth points awarded per pellet eaten
 
 // ─── Fish persistence ─────────────────────────────────────────────────────────
 let saveFishTimer = null;
@@ -543,6 +571,7 @@ function saveFish() {
     const snapshot = fish.map(f => ({
       id: f.id, type: f.type, hue: f.hue, stage: f.stage,
       health: f.health, maxSize: f.maxSize, speed: f.speed,
+      growth: f.growth, foodGrowth: f.foodGrowth,
     }));
     chrome.storage.local.set({ tankFish: snapshot }).catch(() => {});
   }, 250);
@@ -556,7 +585,7 @@ async function initFish() {
         const m = Math.round(f.maxSize * 0.38) * 2;
         const x = m + Math.random() * (W - m * 2);
         const y = m + Math.random() * (H - m * 2 - 25);
-        const newFish = new Fish({ id: f.id, x, y, size: f.maxSize, speed: f.speed, hue: f.hue, type: f.type, stage: f.stage });
+        const newFish = new Fish({ id: f.id, x, y, size: f.maxSize, speed: f.speed, hue: f.hue, type: f.type, stage: f.stage, growth: f.growth ?? 0, foodGrowth: f.foodGrowth ?? 0 });
         newFish.health = f.health;
         fish.push(newFish);
       }
@@ -631,6 +660,18 @@ function render() {
   fish.sort((a, b) => a.size - b.size);
   fish.forEach(f => { f.update(W, H, tankHealth, foodPellets); f.draw(ctx, f.health); });
 
+  // Always-visible growth bars for fry and juvenile
+  for (const f of fish) {
+    if (f.stage === 'adult' || f.stage === 'dead' || f.enterFrames > 0) continue;
+    const barW = Math.max(f.size * 2.5, 18);
+    const bx   = f.x - barW / 2;
+    const by   = f.y + f.size + 3;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(bx, by, barW, 3);
+    ctx.fillStyle = f.stage === 'fry' ? '#44cc88' : '#6699ff';
+    ctx.fillRect(bx, by, barW * (f.growth / 100), 3);
+  }
+
   if (debugMode) {
     ctx.textAlign = 'center';
     ctx.font = 'bold 9px monospace';
@@ -640,14 +681,21 @@ function render() {
       const bx = f.x - barW / 2;
       const by = f.y - f.size - 14;
 
-      // Bar background
+      // HP bar background + fill
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(bx, by, barW, barH);
-
-      // Bar fill — green → yellow → red based on fish health
       const hpPct = f.stage === 'dead' ? 0 : f.health / 100;
       ctx.fillStyle = `hsl(${hpPct * 120},90%,50%)`;
       ctx.fillRect(bx, by, barW * hpPct, barH);
+
+      // Growth bar (second row, below HP bar)
+      if (f.stage === 'fry' || f.stage === 'juvenile') {
+        const gy = by + barH + 2;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(bx, gy, barW, barH);
+        ctx.fillStyle = f.stage === 'fry' ? '#44cc88' : '#6699ff';
+        ctx.fillRect(bx, gy, barW * (f.growth / 100), barH);
+      }
 
       // Stage label
       ctx.fillStyle = f.stage === 'dead' ? '#f55' : '#ff0';
@@ -1037,6 +1085,11 @@ document.getElementById('debug-coin-btns').addEventListener('click', async e => 
 document.getElementById('debug-accrual-slider').addEventListener('input', e => {
   coinAccrualMult = Number(e.target.value);
   document.getElementById('debug-accrual-val').textContent = coinAccrualMult + '×';
+});
+
+document.getElementById('debug-grow-slider').addEventListener('input', e => {
+  growthSpeed = Number(e.target.value);
+  document.getElementById('debug-grow-val').textContent = growthSpeed + '×';
 });
 
 document.getElementById('debug-health-slider').addEventListener('input', e => {
