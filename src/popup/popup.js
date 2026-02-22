@@ -518,6 +518,7 @@ const ripples = [];
 let debugMode = false;
 let hpReact        = 0.002; // exponential chase coefficient (per frame); slider shows value * 1000
 let coinAccrualMult = 1;    // debug multiplier for coin accrual speed
+let lastCoins = null;       // track coin delta for animation; null = first poll (skip animation)
 
 // ─── Fish persistence ─────────────────────────────────────────────────────────
 let saveFishTimer = null;
@@ -673,6 +674,27 @@ function scoreColor(s) {
   return `hsl(${s * 1.2},70%,50%)`;
 }
 
+function spawnCoinFloat(text) {
+  const panel   = document.getElementById('panel');
+  const coinRow = document.getElementById('coin-row');
+  const div = document.createElement('div');
+  div.className = 'coin-float';
+  div.textContent = text;
+  div.style.left = (coinRow.offsetLeft + coinRow.offsetWidth - 65) + 'px';
+  div.style.top  = (coinRow.offsetTop) + 'px';
+  panel.appendChild(div);
+  div.addEventListener('animationend', () => div.remove());
+}
+
+function showBurst(label) {
+  const el = document.getElementById('pomo-burst');
+  el.textContent = label;
+  el.classList.remove('show');
+  void el.offsetWidth; // force reflow to restart animation
+  el.classList.add('show');
+  el.addEventListener('animationend', () => el.classList.remove('show'), { once: true });
+}
+
 function applyState({ focusScore = 70, totalFocusMinutes = 0, totalDistractedMinutes = 0,
                       isDistracting = false, currentSite = '', coins = 0 }) {
   health = focusScore;
@@ -706,6 +728,13 @@ function applyState({ focusScore = 70, totalFocusMinutes = 0, totalDistractedMin
   document.getElementById('focus-time').textContent      = fmtTime(totalFocusMinutes);
   document.getElementById('distracted-time').textContent = fmtTime(totalDistractedMinutes);
   document.getElementById('coin-value').textContent      = Math.floor(coins);
+
+  // Coin delta animation
+  if (lastCoins !== null) {
+    const delta = coins - lastCoins;
+    if (delta > 0.005) spawnCoinFloat(`+${delta.toFixed(2)}`);
+  }
+  lastCoins = coins;
 }
 
 // ─── Pomodoro ─────────────────────────────────────────────────────────────────
@@ -750,6 +779,7 @@ async function completePomodoro() {
     poll();
   } catch { /* outside extension context */ }
   spawnRewardFish();
+  showBurst('🎉 POMODORO COMPLETE! +25 coins & a new fry!');
 }
 
 document.getElementById('pomo-btn').addEventListener('click', () => {
@@ -788,6 +818,7 @@ async function checkPendingFish() {
   }
   saveFish();
   await chrome.storage.local.set({ pendingFish: [] });
+  showBurst('🐟 New fish arrived! Check your tank.');
 }
 
 async function poll() {
