@@ -16,7 +16,6 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     document.getElementById(`page-${btn.dataset.page}`).hidden = false;
     if (btn.dataset.page === 'fish')     loadFishPage();
     if (btn.dataset.page === 'released') loadReleasedPage();
-    if (btn.dataset.page === 'shop')     loadShopPage();
   });
 });
 
@@ -290,67 +289,6 @@ function renderReleasedList(arr) {
   }
 }
 
-// ─── Inline Shop ──────────────────────────────────────────────────────────────
-const SHOP_PREVIEW = {
-  basic: { hue: 155, fn: miniBasic, s: 20, cx: 55, cy: 35 },
-  long:  { hue:  20, fn: miniLong,  s: 16, cx: 60, cy: 35 },
-  round: { hue: 280, fn: miniRound, s: 18, cx: 55, cy: 37 },
-};
-
-function renderShopPreviews() {
-  document.querySelectorAll('.fish-preview-inline').forEach(canvas => {
-    const type = canvas.closest('.shop-fish-card').dataset.type;
-    const p = SHOP_PREVIEW[type];
-    if (!p) return;
-    const ctx = canvas.getContext('2d');
-    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    g.addColorStop(0, 'hsl(210,68%,10%)');
-    g.addColorStop(1, 'hsl(220,75%,6%)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    p.fn(ctx, p.cx, p.cy, p.s, p.hue);
-  });
-}
-
-let shopCoins = 0;
-function updateShopBalance(coins) {
-  shopCoins = coins;
-  const el = document.getElementById('shop-balance');
-  if (el) el.textContent = Math.floor(coins);
-  document.querySelectorAll('.buy-btn').forEach(btn => {
-    const cost = Number(btn.dataset.cost);
-    btn.disabled = coins < cost;
-    btn.closest('.shop-fish-card').classList.toggle('unaffordable', coins < cost);
-  });
-}
-
-async function loadShopPage() {
-  const { coins = 0 } = await chrome.storage.local.get('coins');
-  updateShopBalance(coins);
-  renderShopPreviews();
-}
-
-document.getElementById('shop-grid-inline').addEventListener('click', async e => {
-  const btn = e.target.closest('.buy-btn');
-  if (!btn || btn.disabled) return;
-  const type = btn.dataset.type;
-  const cost = Number(btn.dataset.cost);
-  const { coins = 0, pendingFish = [] } = await chrome.storage.local.get(['coins', 'pendingFish']);
-  if (coins < cost) { toast('Not enough coins!'); return; }
-  const hue = Math.floor(Math.random() * 360);
-  const newCoins = Math.round((coins - cost) * 1000) / 1000;
-  await chrome.storage.local.set({ coins: newCoins, pendingFish: [...pendingFish, { type, hue }] });
-  updateShopBalance(newCoins);
-  const name = btn.closest('.shop-fish-card').querySelector('.shop-fish-name').textContent;
-  toast(`${name} incoming! It'll arrive as a baby fry. 🐟`);
-});
-
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.coins) {
-    updateShopBalance(changes.coins.newValue ?? 0);
-  }
-});
-
 // ─── Saved toast ──────────────────────────────────────────────────────────────
 let toastTimer;
 function toast(msg = 'Saved ✓') {
@@ -364,10 +302,3 @@ function toast(msg = 'Saved ✓') {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.body.insertAdjacentHTML('beforeend', '<div id="toast"></div>');
 load();
-
-// Auto-activate tab from URL param (e.g. ?tab=shop)
-const _tabParam = new URLSearchParams(location.search).get('tab');
-if (_tabParam) {
-  const _btn = document.querySelector(`.nav-btn[data-page="${_tabParam}"]`);
-  if (_btn) _btn.click();
-}
