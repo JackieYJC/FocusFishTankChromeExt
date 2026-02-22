@@ -33,8 +33,8 @@ class Fish {
     saveFish();
   }
 
-  hitTest(px, py) {
-    return Math.hypot(px - this.x, py - this.y) < this.size * 1.8;
+  hitTest(px, py, minRadius = 0) {
+    return Math.hypot(px - this.x, py - this.y) < Math.max(this.size * 1.8, minRadius);
   }
 
   update(W, H, tankHealth, foodPellets) {
@@ -655,7 +655,7 @@ canvas.addEventListener('click', e => {
   const y = (e.clientY - rect.top)  * (H / rect.height);
 
   if (debugMode) {
-    const hit = fish.find(f => f.hitTest(x, y));
+    const hit = fish.find(f => f.hitTest(x, y, 22));
     if (hit) { hit.cycleStage(); return; }
   }
 
