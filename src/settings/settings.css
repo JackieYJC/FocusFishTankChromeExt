@@ -21,27 +21,34 @@ body {
   min-height: 100vh;
 }
 
-/* ── Page layout ──────────────────────────────────────────────────────────── */
-.page {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 0 24px 60px;
+/* ── Sidebar layout ──────────────────────────────────────────────────────── */
+.settings-layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 180px; flex-shrink: 0;
+  background: #071220; padding: 24px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  border-right: 1px solid var(--border);
 }
 
-/* ── Header ───────────────────────────────────────────────────────────────── */
-header {
-  padding: 36px 0 28px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 32px;
+.sidebar-brand {
+  color: var(--accent); font-weight: 700; font-size: 13px;
+  margin-bottom: 16px; padding: 0 8px;
 }
-.header-inner {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+
+.nav-btn {
+  background: none; border: none; color: var(--muted);
+  text-align: left; padding: 8px 12px; border-radius: 8px;
+  cursor: pointer; font-size: 13px; transition: all 0.15s;
 }
-.logo { font-size: 36px; line-height: 1; }
-h1 { font-size: 22px; font-weight: 700; color: var(--text); }
-.subtitle { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.nav-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+.nav-btn.active { background: rgba(100,180,255,0.12); color: var(--accent); font-weight: 600; }
+
+.settings-main { flex: 1; padding: 32px; max-width: 600px; }
+
+/* ── Page headings ────────────────────────────────────────────────────────── */
+.page-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.page-desc  { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
 
 /* ── Cards ────────────────────────────────────────────────────────────────── */
 .card {
@@ -153,6 +160,51 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
   transition: background 0.2s;
 }
 #add-site-btn:hover { background: #1e5aaa; }
+
+/* ── Fish status cards ───────────────────────────────────────────────────── */
+.fish-status-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card); margin-bottom: 8px;
+}
+
+.fish-mini-preview {
+  width: 70px; height: 50px; border-radius: 6px; flex-shrink: 0;
+}
+
+.fish-meta { flex: 1; }
+.fish-meta .fish-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.fish-meta .fish-stage {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--muted);
+}
+
+.fish-hp-bar {
+  height: 4px; border-radius: 2px; background: #1a2c40; margin-top: 6px;
+}
+.fish-hp-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+.release-btn {
+  padding: 5px 12px;
+  background: rgba(220,60,60,0.1); color: var(--danger);
+  border: 1px solid rgba(220,60,60,0.35); border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-weight: 500;
+  transition: background 0.15s; flex-shrink: 0;
+}
+.release-btn:hover { background: rgba(220,60,60,0.25); }
+
+/* ── Released fish history ───────────────────────────────────────────────── */
+.released-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card); margin-bottom: 8px;
+  opacity: 0.75;
+}
+
+.released-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.muted-text    { color: var(--muted); font-size: 13px; }
 
 /* ── Saved toast ──────────────────────────────────────────────────────────── */
 #toast {

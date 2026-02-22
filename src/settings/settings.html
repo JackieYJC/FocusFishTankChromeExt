@@ -8,73 +8,89 @@
 </head>
 <body>
 
-  <div class="page">
-    <header>
-      <div class="header-inner">
-        <div class="logo">🐟</div>
-        <div>
-          <h1>Focus Fish Tank</h1>
-          <p class="subtitle">Settings</p>
-        </div>
-      </div>
-    </header>
+  <div class="settings-layout">
+    <nav class="sidebar">
+      <div class="sidebar-brand">🐟 Focus Fish Tank</div>
+      <button class="nav-btn active" data-page="preferences">Preferences</button>
+      <button class="nav-btn" data-page="fish">My Fish</button>
+      <button class="nav-btn" data-page="released">Released Fish</button>
+    </nav>
 
-    <main>
+    <main class="settings-main">
 
-      <!-- Work Hours -->
-      <section class="card">
-        <div class="card-header">
-          <h2>Work Hours</h2>
-          <p class="card-desc">Score only changes during these hours. Outside them, your fish rest.</p>
-        </div>
+      <!-- Preferences page -->
+      <section id="page-preferences">
 
-        <div class="field">
-          <label class="toggle-row">
-            <input type="checkbox" id="wh-enabled">
-            <span class="toggle-label">Only track during work hours</span>
-          </label>
-        </div>
+        <!-- Work Hours -->
+        <section class="card">
+          <div class="card-header">
+            <h2>Work Hours</h2>
+            <p class="card-desc">Score only changes during these hours. Outside them, your fish rest.</p>
+          </div>
 
-        <div id="wh-config">
           <div class="field">
-            <span class="field-label">Active days</span>
-            <div id="days-grid">
-              <label class="day-pill"><input type="checkbox" id="day-1"><span>Mon</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-2"><span>Tue</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-3"><span>Wed</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-4"><span>Thu</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-5"><span>Fri</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-6"><span>Sat</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-0"><span>Sun</span></label>
-            </div>
+            <label class="toggle-row">
+              <input type="checkbox" id="wh-enabled">
+              <span class="toggle-label">Only track during work hours</span>
+            </label>
           </div>
 
-          <div class="field time-field">
-            <div class="time-group">
-              <span class="field-label">From</span>
-              <input type="time" id="wh-start" value="09:00">
+          <div id="wh-config">
+            <div class="field">
+              <span class="field-label">Active days</span>
+              <div id="days-grid">
+                <label class="day-pill"><input type="checkbox" id="day-1"><span>Mon</span></label>
+                <label class="day-pill"><input type="checkbox" id="day-2"><span>Tue</span></label>
+                <label class="day-pill"><input type="checkbox" id="day-3"><span>Wed</span></label>
+                <label class="day-pill"><input type="checkbox" id="day-4"><span>Thu</span></label>
+                <label class="day-pill"><input type="checkbox" id="day-5"><span>Fri</span></label>
+                <label class="day-pill"><input type="checkbox" id="day-6"><span>Sat</span></label>
+                <label class="day-pill"><input type="checkbox" id="day-0"><span>Sun</span></label>
+              </div>
             </div>
-            <div class="time-group">
-              <span class="field-label">To</span>
-              <input type="time" id="wh-end" value="18:00">
+
+            <div class="field time-field">
+              <div class="time-group">
+                <span class="field-label">From</span>
+                <input type="time" id="wh-start" value="09:00">
+              </div>
+              <div class="time-group">
+                <span class="field-label">To</span>
+                <input type="time" id="wh-end" value="18:00">
+              </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        <!-- Distracting Sites -->
+        <section class="card">
+          <div class="card-header">
+            <h2>Distracting Sites</h2>
+            <p class="card-desc">Visiting these sites decays your focus score and makes your fish sad.</p>
+          </div>
+
+          <ul id="blocklist"></ul>
+
+          <div id="add-site-row">
+            <input type="text" id="new-site" placeholder="example.com">
+            <button id="add-site-btn">Add Site</button>
+          </div>
+        </section>
+
       </section>
 
-      <!-- Distracting Sites -->
-      <section class="card">
-        <div class="card-header">
-          <h2>Distracting Sites</h2>
-          <p class="card-desc">Visiting these sites decays your focus score and makes your fish sad.</p>
-        </div>
+      <!-- My Fish page -->
+      <section id="page-fish" hidden>
+        <h2 class="page-title">My Fish</h2>
+        <p class="page-desc">Your current tank. Release a fish to let it go free.</p>
+        <div id="fish-list"></div>
+      </section>
 
-        <ul id="blocklist"></ul>
-
-        <div id="add-site-row">
-          <input type="text" id="new-site" placeholder="example.com">
-          <button id="add-site-btn">Add Site</button>
-        </div>
+      <!-- Released Fish page -->
+      <section id="page-released" hidden>
+        <h2 class="page-title">Released Fish</h2>
+        <p class="page-desc">Fish you've set free into the wild.</p>
+        <div id="released-list"></div>
       </section>
 
     </main>
