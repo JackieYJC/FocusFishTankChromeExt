@@ -50,12 +50,12 @@ body {
   width: 70%; background: #4caf50;
   transition: width 0.6s ease, background 0.6s ease;
 }
-#score-value { font-size: 13px; font-weight: 700; min-width: 30px; text-align: right; }
+#score-value { font-size: 15px; font-weight: 700; min-width: 30px; text-align: right; }
 
 #status-row {
   display: flex; align-items: center; gap: 8px;
   background: #0a1525; border-radius: 8px;
-  padding: 7px 12px; font-size: 12px; color: #8aa8cc;
+  padding: 7px 12px; font-size: 13px; color: #8aa8cc;
 }
 #status-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -75,16 +75,16 @@ body {
 }
 .divider { width: 1px; height: 36px; background: #1a3050; }
 .label {
-  font-size: 10px; text-transform: uppercase;
+  font-size: 11px; text-transform: uppercase;
   letter-spacing: 0.6px; color: #5a7aaa; margin-bottom: 3px;
 }
-.time-val { font-size: 16px; font-weight: 700; }
+.time-val { font-size: 18px; font-weight: 700; }
 
 #reset-btn {
   padding: 8px; width: 100%;
   background: #152240; color: #6a9ac8;
   border: 1px solid #243a60; border-radius: 8px;
-  cursor: pointer; font-size: 12px; letter-spacing: 0.3px;
+  cursor: pointer; font-size: 13px; letter-spacing: 0.3px;
   transition: background 0.2s;
 }
 #reset-btn:hover { background: #1e3258; color: #8ab5dc; }
@@ -100,13 +100,13 @@ body {
   padding: 11px 16px;
   background: #0a1525; border-bottom: 1px solid #1a3050;
   position: sticky; top: 0;
-  font-size: 13px; font-weight: 600; color: #d0dff5;
+  font-size: 14px; font-weight: 600; color: #d0dff5;
 }
 
 #back-btn {
   background: none; border: none;
   color: #6a9ac8; cursor: pointer;
-  font-size: 12px; padding: 3px 8px;
+  font-size: 13px; padding: 3px 8px;
   border-radius: 6px; transition: background 0.2s;
 }
 #back-btn:hover { background: #1a2e4a; }
@@ -116,14 +116,14 @@ body {
   border-bottom: 1px solid #1a3050;
 }
 .settings-section h3 {
-  font-size: 10px; text-transform: uppercase;
+  font-size: 11px; text-transform: uppercase;
   letter-spacing: 0.8px; color: #5a7aaa; margin-bottom: 10px;
 }
 
 /* Work hours */
 .toggle-row {
   display: flex; align-items: center; gap: 8px;
-  font-size: 12px; color: #a0b8d0; cursor: pointer; margin-bottom: 12px;
+  font-size: 13px; color: #a0b8d0; cursor: pointer; margin-bottom: 12px;
 }
 .toggle-row input[type="checkbox"] { accent-color: #4a8adc; width: 14px; height: 14px; }
 
@@ -135,7 +135,7 @@ body {
 .day-pill input[type="checkbox"] { display: none; }
 .day-pill span {
   display: block; padding: 4px 9px; border-radius: 6px;
-  font-size: 11px; background: #1a2e4a; color: #6a8aaa;
+  font-size: 12px; background: #1a2e4a; color: #6a8aaa;
   cursor: pointer; user-select: none;
   border: 1px solid transparent; transition: all 0.15s;
 }
@@ -143,14 +143,14 @@ body {
 
 #time-inputs {
   display: flex; gap: 16px; align-items: center;
-  font-size: 12px; color: #8aa8cc;
+  font-size: 13px; color: #8aa8cc;
 }
 #time-inputs label { display: flex; align-items: center; gap: 6px; }
 
 input[type="time"] {
   background: #0a1525; border: 1px solid #243a60;
   border-radius: 6px; color: #d0dff5;
-  padding: 4px 8px; font-size: 12px;
+  padding: 4px 8px; font-size: 13px;
 }
 input[type="time"]:focus { outline: none; border-color: #2a5aaa; }
 
@@ -160,7 +160,7 @@ input[type="time"]:focus { outline: none; border-color: #2a5aaa; }
 #blocklist li {
   display: flex; align-items: center; justify-content: space-between;
   padding: 5px 8px; border-radius: 6px;
-  font-size: 12px; color: #8aa8cc;
+  font-size: 13px; color: #8aa8cc;
 }
 #blocklist li:hover { background: #0a1525; }
 
@@ -176,7 +176,7 @@ input[type="time"]:focus { outline: none; border-color: #2a5aaa; }
 #new-site {
   flex: 1; background: #0a1525;
   border: 1px solid #243a60; border-radius: 6px;
-  color: #d0dff5; padding: 6px 10px; font-size: 12px;
+  color: #d0dff5; padding: 6px 10px; font-size: 13px;
 }
 #new-site::placeholder { color: #4a6a8a; }
 #new-site:focus { outline: none; border-color: #2a5aaa; }
@@ -184,6 +184,6 @@ input[type="time"]:focus { outline: none; border-color: #2a5aaa; }
 #add-site-btn {
   padding: 6px 14px; background: #1a3a6a; color: #6a9ac8;
   border: 1px solid #243a60; border-radius: 6px;
-  cursor: pointer; font-size: 12px; transition: background 0.2s;
+  cursor: pointer; font-size: 13px; transition: background 0.2s;
 }
 #add-site-btn:hover { background: #1e3258; }
