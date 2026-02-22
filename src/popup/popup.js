@@ -547,6 +547,72 @@ function applyState({ focusScore = 70, totalFocusMinutes = 0, totalDistractedMin
   document.getElementById('coin-value').textContent      = Math.floor(coins);
 }
 
+// ─── Pomodoro ─────────────────────────────────────────────────────────────────
+const POMO_DURATION = 25 * 60;
+let pomoActive    = false;
+let pomoRemaining = POMO_DURATION;
+let pomoInterval  = null;
+
+function fmtPomo(secs) {
+  return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+}
+
+function updatePomoDisplay() {
+  document.getElementById('pomo-display').textContent = fmtPomo(pomoRemaining);
+  const btn = document.getElementById('pomo-btn');
+  btn.textContent = pomoActive ? 'Pause' : (pomoRemaining < POMO_DURATION ? 'Resume' : 'Start');
+  document.getElementById('pomo-row').classList.toggle('active', pomoActive);
+}
+
+function spawnRewardFish() {
+  const types = ['basic', 'long', 'round'];
+  const type  = types[Math.floor(Math.random() * types.length)];
+  const hue   = Math.floor(Math.random() * 360);
+  const maxS  = 22 + Math.floor(Math.random() * 10);
+  const frySize = Math.round(maxS * 0.38);
+  const m = frySize * 2;
+  const x = m + Math.random() * (W - m * 2);
+  const y = m + Math.random() * (H - m * 2 - 25);
+  fish.push(new Fish({ x, y, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
+}
+
+async function completePomodoro() {
+  pomoActive    = false;
+  pomoRemaining = POMO_DURATION;
+  clearInterval(pomoInterval);
+  pomoInterval  = null;
+  updatePomoDisplay();
+  try {
+    const { coins = 0 } = await chrome.storage.local.get('coins');
+    await chrome.storage.local.set({ coins: Math.round((coins + 25) * 1000) / 1000 });
+    poll();
+  } catch { /* outside extension context */ }
+  spawnRewardFish();
+}
+
+document.getElementById('pomo-btn').addEventListener('click', () => {
+  if (pomoActive) {
+    pomoActive = false;
+    clearInterval(pomoInterval);
+    pomoInterval = null;
+  } else {
+    if (pomoRemaining <= 0) pomoRemaining = POMO_DURATION;
+    pomoActive = true;
+    pomoInterval = setInterval(() => {
+      pomoRemaining--;
+      updatePomoDisplay();
+      if (pomoRemaining <= 0) completePomodoro();
+    }, 1000);
+  }
+  updatePomoDisplay();
+});
+
+document.getElementById('debug-pomo-btn').addEventListener('click', () => {
+  completePomodoro();
+});
+
+updatePomoDisplay();
+
 async function poll() {
   try {
     const data = await chrome.storage.local.get([

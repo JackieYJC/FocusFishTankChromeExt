@@ -125,6 +125,28 @@ body {
 }
 .time-val { font-size: 18px; font-weight: 700; }
 
+/* ── Pomodoro row ────────────────────────────────────────────────────────── */
+#pomo-row {
+  display: flex; align-items: center; gap: 8px;
+  background: #0a1525; border-radius: 8px; padding: 7px 12px;
+}
+.pomo-icon { font-size: 14px; line-height: 1; }
+#pomo-display {
+  font-size: 18px; font-weight: 700; color: #cc4444;
+  font-variant-numeric: tabular-nums; flex: 1; letter-spacing: 0.5px;
+}
+#pomo-row.active #pomo-display { color: #ff6666; text-shadow: 0 0 8px rgba(255,80,80,0.4); }
+#pomo-btn {
+  padding: 4px 14px;
+  background: #2a0a0a; color: #cc4444;
+  border: 1px solid #6a2020; border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-weight: 600;
+  transition: background 0.2s; white-space: nowrap;
+}
+#pomo-btn:hover { background: #3d1010; color: #ff7777; }
+#pomo-row.active #pomo-btn { background: #0d1a2a; color: #6688bb; border-color: #3a5080; }
+#pomo-row.active #pomo-btn:hover { background: #152535; }
+
 /* ── Coin row ─────────────────────────────────────────────────────────────── */
 #coin-row {
   display: flex; align-items: center; gap: 6px;
