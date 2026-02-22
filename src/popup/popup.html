@@ -9,7 +9,15 @@
   <div id="app">
     <div id="tank-wrapper">
       <canvas id="tank" width="360" height="260"></canvas>
+      <button id="debug-btn" title="Debug Mode">🐛</button>
       <button id="settings-btn" title="Settings">⚙</button>
+      <div id="debug-panel">
+        <div id="debug-health-row">
+          <span>Tank Health</span>
+          <span id="debug-health-val">70</span>
+        </div>
+        <input type="range" id="debug-health-slider" min="0" max="100" value="70">
+      </div>
     </div>
 
     <div id="panel">

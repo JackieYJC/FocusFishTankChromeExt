@@ -7,17 +7,41 @@ class Fish {
     this.y = y;
     this.tx = x;
     this.ty = y;
-    this.size = size;
+    this.maxSize = size;
+    this.stage = 'fry';
     this.speed = speed;
     this.hue = hue;
     this.phase = Math.random() * Math.PI * 2;
     this.facing = 1;
     this.wanderCD = 0;
+    this._applyStageSize();
   }
 
-  update(W, H, health, foodPellets) {
-    this.phase += 0.05 + (health / 100) * 0.06;
-    const spd = 0.4 + (health / 100) * this.speed;
+  _applyStageSize() {
+    const f = { fry: 0.38, juvenile: 0.62, adult: 1.0, dead: 1.0 };
+    this.size = Math.round(this.maxSize * (f[this.stage] ?? 1.0));
+  }
+
+  cycleStage() {
+    const order = ['fry', 'juvenile', 'adult', 'dead'];
+    this.stage = order[(order.indexOf(this.stage) + 1) % order.length];
+    this._applyStageSize();
+    this.wanderCD = 0;
+  }
+
+  hitTest(px, py) {
+    return Math.hypot(px - this.x, py - this.y) < this.size * 1.8;
+  }
+
+  update(W, H, tankHealth, foodPellets) {
+    if (this.stage === 'dead') {
+      this.y = Math.max(this.size + 5, this.y - 0.4);
+      return;
+    }
+
+    this.phase += 0.05 + (tankHealth / 100) * 0.06;
+    const speedMult = this.stage === 'fry' ? 1.25 : 1.0;
+    const spd = (0.4 + (tankHealth / 100) * this.speed) * speedMult;
 
     // Find nearest active pellet within detection range
     const DETECT = 150, EAT = 14;
@@ -56,6 +80,8 @@ class Fish {
   }
 
   draw(ctx, health) {
+    if (this.stage === 'dead') { this._drawDead(ctx); return; }
+
     const { x, y, size: s, phase, facing, hue } = this;
     const t = health / 100;
     const h = t * hue;
@@ -89,6 +115,14 @@ class Fish {
     ctx.fillStyle = `hsla(${h},65%,67%,0.35)`;
     ctx.fill();
 
+    // Sick tint when tank health is critically low
+    if (health < 20) {
+      ctx.beginPath();
+      ctx.ellipse(0, s * 0.05, s * 0.6, s * 0.38, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(80,200,60,${0.18 + (20 - health) / 100})`;
+      ctx.fill();
+    }
+
     // Dorsal fin
     ctx.beginPath();
     ctx.moveTo(-s * 0.05, -s * 0.52);
@@ -120,6 +154,73 @@ class Fish {
       ctx.arc(s * 0.38, s * 0.04, s * 0.13, 0.15, Math.PI - 0.15, true);
       ctx.stroke();
     }
+
+    ctx.restore();
+  }
+
+  _drawDead(ctx) {
+    const { x, y, size: s, phase, facing } = this;
+
+    // Grayscale upside-down body (y-axis flipped)
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(facing, -1);
+
+    const wag = Math.sin(phase) * s * 0.38;
+
+    // Tail
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.65, 0);
+    ctx.lineTo(-s * 1.25, -s * 0.58 + wag);
+    ctx.lineTo(-s * 1.25,  s * 0.58 + wag);
+    ctx.closePath();
+    ctx.fillStyle = '#555';
+    ctx.fill();
+
+    // Body
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s, s * 0.52, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#777';
+    ctx.fill();
+
+    // Belly shimmer
+    ctx.beginPath();
+    ctx.ellipse(s * 0.12, s * 0.12, s * 0.52, s * 0.22, -0.3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(180,180,180,0.35)';
+    ctx.fill();
+
+    // Dorsal fin
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.05, -s * 0.52);
+    ctx.quadraticCurveTo(s * 0.28, -s * 0.9, s * 0.62, -s * 0.52);
+    ctx.fillStyle = '#555';
+    ctx.fill();
+
+    // Eye socket
+    ctx.beginPath();
+    ctx.arc(s * 0.56, -s * 0.07, s * 0.18, 0, Math.PI * 2);
+    ctx.fillStyle = '#999';
+    ctx.fill();
+
+    ctx.restore();
+
+    // X eyes — separate pass without y-flip so they sit at the visual eye position
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(facing, 1);
+
+    const ex = s * 0.56;
+    const ey = s * 0.07; // mirrored from normal -s*0.07 due to y-flip above
+    const r  = s * 0.10;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = Math.max(1, s * 0.07);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ex - r, ey - r);
+    ctx.lineTo(ex + r, ey + r);
+    ctx.moveTo(ex + r, ey - r);
+    ctx.lineTo(ex - r, ey + r);
+    ctx.stroke();
 
     ctx.restore();
   }
@@ -266,19 +367,21 @@ const canvas = document.getElementById('tank');
 const ctx = canvas.getContext('2d');
 
 const fish = [
-  new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155 }),
-  new Fish({ x:  80, y: 160, size: 16, speed: 0.9, hue: 170 }),
-  new Fish({ x: 280, y: 130, size: 19, speed: 1.0, hue: 140 }),
+  new Fish({ x: 180, y: 100, size: 48, speed: 1.2, hue: 155 }),
+  new Fish({ x:  80, y: 160, size: 48, speed: 0.9, hue: 170 }),
+  new Fish({ x: 280, y: 130, size: 48, speed: 1.0, hue: 140 }),
 ];
 const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
 const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
 
 let health = 70;
+let tankHealth = 70;   // drives all canvas visuals; mirrors focusScore outside debug mode
 const foodPellets = [];
 const ripples = [];
+let debugMode = false;
 
 function drawWater() {
-  const dark = (1 - health / 100) * 0.55;
+  const dark = (1 - tankHealth / 100) * 0.55;
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, `hsl(210,${68 - dark * 30}%,${20 - dark * 12}%)`);
   grad.addColorStop(1, `hsl(220,${75 - dark * 30}%,${12 - dark * 8}%)`);
@@ -286,9 +389,9 @@ function drawWater() {
   ctx.fillRect(0, 0, W, H);
 
   // Caustic light rays when healthy
-  if (health > 45) {
+  if (tankHealth > 45) {
     ctx.save();
-    ctx.globalAlpha = ((health - 45) / 55) * 0.07;
+    ctx.globalAlpha = ((tankHealth - 45) / 55) * 0.07;
     for (let i = 0; i < 5; i++) {
       const rx = 50 + i * 65;
       ctx.beginPath();
@@ -310,8 +413,8 @@ function drawWater() {
   ctx.fillRect(0, H - 20, W, 20);
 
   // Murk overlay
-  if (health < 40) {
-    ctx.fillStyle = `rgba(60,15,0,${(40 - health) / 130})`;
+  if (tankHealth < 40) {
+    ctx.fillStyle = `rgba(60,15,0,${(40 - tankHealth) / 130})`;
     ctx.fillRect(0, 0, W, H);
   }
 }
@@ -319,7 +422,7 @@ function drawWater() {
 function render() {
   ctx.clearRect(0, 0, W, H);
   drawWater();
-  seaweeds.forEach(s => { s.update(); s.draw(ctx, health); });
+  seaweeds.forEach(s => { s.update(); s.draw(ctx, tankHealth); });
   bubbles.forEach(b => { b.update(); b.draw(ctx); });
 
   // Food & ripples
@@ -332,7 +435,21 @@ function render() {
   prune(ripples);
 
   fish.sort((a, b) => a.size - b.size);
-  fish.forEach(f => { f.update(W, H, health, foodPellets); f.draw(ctx, health); });
+  fish.forEach(f => { f.update(W, H, tankHealth, foodPellets); f.draw(ctx, tankHealth); });
+
+  if (debugMode) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 9px monospace';
+    for (const f of fish) {
+      ctx.fillStyle = f.stage === 'dead' ? '#f55' : '#ff0';
+      ctx.fillText(f.stage, f.x, f.y - f.size - 4);
+    }
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('DEBUG', 6, 14);
+  }
+
   requestAnimationFrame(render);
 }
 
@@ -342,6 +459,11 @@ canvas.addEventListener('click', e => {
   const rect = canvas.getBoundingClientRect();
   const x = (e.clientX - rect.left) * (W / rect.width);
   const y = (e.clientY - rect.top)  * (H / rect.height);
+
+  if (debugMode) {
+    const hit = fish.find(f => f.hitTest(x, y));
+    if (hit) { hit.cycleStage(); return; }
+  }
 
   const count = 5 + Math.floor(Math.random() * 4);
   for (let i = 0; i < count; i++) foodPellets.push(new FoodPellet(x, y, H));
@@ -361,6 +483,11 @@ function scoreColor(s) {
 function applyState({ focusScore = 70, totalFocusMinutes = 0, totalDistractedMinutes = 0,
                       isDistracting = false, currentSite = '' }) {
   health = focusScore;
+  if (!debugMode) {
+    tankHealth = focusScore;
+    document.getElementById('debug-health-slider').value = tankHealth;
+    document.getElementById('debug-health-val').textContent = Math.round(tankHealth);
+  }
 
   const bar = document.getElementById('score-bar');
   bar.style.width = focusScore + '%';
@@ -411,4 +538,16 @@ render();
 // ─── Settings ─────────────────────────────────────────────────────────────────
 document.getElementById('settings-btn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
+});
+
+// ─── Debug mode ───────────────────────────────────────────────────────────────
+document.getElementById('debug-btn').addEventListener('click', () => {
+  debugMode = !debugMode;
+  document.getElementById('debug-btn').classList.toggle('active', debugMode);
+  document.getElementById('debug-panel').classList.toggle('visible', debugMode);
+});
+
+document.getElementById('debug-health-slider').addEventListener('input', e => {
+  tankHealth = Number(e.target.value);
+  document.getElementById('debug-health-val').textContent = tankHealth;
 });
