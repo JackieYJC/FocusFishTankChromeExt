@@ -55,8 +55,27 @@ body {
   font: bold 11px monospace;
 }
 #debug-panel.visible { display: flex; flex-direction: column; gap: 4px; }
-#debug-health-row, #debug-rate-row { display: flex; justify-content: space-between; }
-#debug-health-slider, #debug-rate-slider { width: 100%; accent-color: #ffaa44; cursor: ew-resize; }
+#debug-health-row, #debug-rate-row, #debug-accrual-row { display: flex; justify-content: space-between; }
+#debug-health-slider, #debug-rate-slider, #debug-accrual-slider { width: 100%; accent-color: #ffaa44; cursor: ew-resize; }
+
+#debug-coin-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+.dbg-coin {
+  flex: 1; padding: 3px 0;
+  background: rgba(240,200,60,0.1);
+  color: #f5c842;
+  border: 1px solid rgba(240,200,60,0.3); border-radius: 4px;
+  cursor: pointer; font: bold 10px monospace;
+  transition: background 0.15s;
+}
+.dbg-coin:hover { background: rgba(240,200,60,0.25); }
+#debug-pomo-btn {
+  flex: 2; padding: 3px 6px;
+  background: rgba(80,160,80,0.15);
+  color: #88cc88; border: 1px solid rgba(80,160,80,0.35); border-radius: 4px;
+  cursor: pointer; font: bold 10px monospace; white-space: nowrap;
+  transition: background 0.15s;
+}
+#debug-pomo-btn:hover { background: rgba(80,160,80,0.3); }
 
 /* ── Panel ────────────────────────────────────────────────────────────────── */
 #panel {

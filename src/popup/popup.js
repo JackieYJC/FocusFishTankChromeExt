@@ -394,7 +394,8 @@ let tankHealth = 70;   // drives all canvas visuals; mirrors focusScore outside 
 const foodPellets = [];
 const ripples = [];
 let debugMode = false;
-let hpReact = 0.002; // exponential chase coefficient (per frame); slider shows value * 1000
+let hpReact        = 0.002; // exponential chase coefficient (per frame); slider shows value * 1000
+let coinAccrualMult = 1;    // debug multiplier for coin accrual speed
 
 function drawWater() {
   const dark = (1 - tankHealth / 100) * 0.55;
@@ -581,6 +582,33 @@ document.getElementById('debug-btn').addEventListener('click', () => {
   debugMode = !debugMode;
   document.getElementById('debug-btn').classList.toggle('active', debugMode);
   document.getElementById('debug-panel').classList.toggle('visible', debugMode);
+});
+
+// ─── Debug coin controls ───────────────────────────────────────────────────────
+// Extra coin accrual while in debug mode (adds on top of background's base rate)
+setInterval(async () => {
+  if (!debugMode || coinAccrualMult <= 1) return;
+  const extra = (health / 100) * 0.2 * (0.5 / 5) * (coinAccrualMult - 1);
+  try {
+    const { coins = 0 } = await chrome.storage.local.get('coins');
+    await chrome.storage.local.set({ coins: Math.round((coins + extra) * 1000) / 1000 });
+  } catch { /* outside extension context */ }
+}, 500);
+
+document.getElementById('debug-coin-btns').addEventListener('click', async e => {
+  const btn = e.target.closest('.dbg-coin');
+  if (!btn) return;
+  const amt = Number(btn.dataset.amt);
+  try {
+    const { coins = 0 } = await chrome.storage.local.get('coins');
+    await chrome.storage.local.set({ coins: Math.max(0, Math.round((coins + amt) * 1000) / 1000) });
+    poll();
+  } catch { /* outside extension context */ }
+});
+
+document.getElementById('debug-accrual-slider').addEventListener('input', e => {
+  coinAccrualMult = Number(e.target.value);
+  document.getElementById('debug-accrual-val').textContent = coinAccrualMult + '×';
 });
 
 document.getElementById('debug-health-slider').addEventListener('input', e => {
