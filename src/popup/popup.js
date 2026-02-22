@@ -453,8 +453,23 @@ function render() {
     ctx.textAlign = 'center';
     ctx.font = 'bold 9px monospace';
     for (const f of fish) {
+      const barW = f.size * 2.2;
+      const barH = 4;
+      const bx = f.x - barW / 2;
+      const by = f.y - f.size - 14;
+
+      // Bar background
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(bx, by, barW, barH);
+
+      // Bar fill — green → yellow → red based on fish health
+      const hpPct = f.stage === 'dead' ? 0 : f.health / 100;
+      ctx.fillStyle = `hsl(${hpPct * 120},90%,50%)`;
+      ctx.fillRect(bx, by, barW * hpPct, barH);
+
+      // Stage label
       ctx.fillStyle = f.stage === 'dead' ? '#f55' : '#ff0';
-      ctx.fillText(f.stage, f.x, f.y - f.size - 4);
+      ctx.fillText(f.stage, f.x, by - 2);
     }
     ctx.textAlign = 'left';
     ctx.font = 'bold 10px monospace';
