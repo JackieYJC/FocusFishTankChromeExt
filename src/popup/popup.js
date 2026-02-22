@@ -665,11 +665,12 @@ function render() {
     if (f.stage === 'adult' || f.stage === 'dead' || f.enterFrames > 0) continue;
     const barW = Math.max(f.size * 2.5, 18);
     const bx   = f.x - barW / 2;
-    const by   = f.y + f.size + 3;
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.fillRect(bx, by, barW, 3);
+    const by   = f.y + f.size + 4;
+    // Light track so the empty bar is visible on the dark water
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(bx, by, barW, 4);
     ctx.fillStyle = f.stage === 'fry' ? '#44cc88' : '#6699ff';
-    ctx.fillRect(bx, by, barW * (f.growth / 100), 3);
+    ctx.fillRect(bx, by, barW * (f.growth / 100), 4);
   }
 
   if (debugMode) {
