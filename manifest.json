@@ -5,10 +5,10 @@
   "description": "Stay focused or your fish will suffer. A virtual fish tank that reacts to your browsing habits.",
   "permissions": ["tabs", "storage", "alarms"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js"
   },
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/popup/popup.html",
     "default_title": "Focus Fish Tank",
     "default_icon": {
       "16": "icons/icon16.png",
