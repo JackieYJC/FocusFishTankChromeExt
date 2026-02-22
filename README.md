@@ -33,17 +33,19 @@ Twitter/X · Reddit · Facebook · Instagram · TikTok · YouTube · Twitch · N
 ## File Structure
 
 ```
-├── manifest.json     Chrome Extension Manifest v3
-├── background.js     Service worker — tracks tabs, updates focus score every 5 s
-├── popup.html        Extension popup layout
-├── popup.css         Dark aquarium-themed UI styles
-├── popup.js          Canvas fish animation + state rendering
-└── icons/            Extension icons (16, 48, 128 px)
+├── manifest.json            Chrome Extension Manifest v3
+├── icons/                   Extension icons (16, 48, 128 px)
+└── src/
+    ├── background.js        Service worker — tracks tabs, updates focus score every 5 s
+    └── popup/
+        ├── popup.html       Extension popup layout
+        ├── popup.css        Dark aquarium-themed UI styles
+        └── popup.js         Canvas fish animation + state rendering
 ```
 
 ## Tuning
 
-Edit the constants at the top of `background.js` to adjust sensitivity:
+Edit the constants at the top of `src/background.js` to adjust sensitivity:
 
 | Constant    | Default | Description                              |
 |-------------|---------|------------------------------------------|
