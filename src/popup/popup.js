@@ -512,7 +512,7 @@ function scoreColor(s) {
 }
 
 function applyState({ focusScore = 70, totalFocusMinutes = 0, totalDistractedMinutes = 0,
-                      isDistracting = false, currentSite = '' }) {
+                      isDistracting = false, currentSite = '', coins = 0 }) {
   health = focusScore;
   if (!debugMode) {
     tankHealth = focusScore;
@@ -543,12 +543,13 @@ function applyState({ focusScore = 70, totalFocusMinutes = 0, totalDistractedMin
 
   document.getElementById('focus-time').textContent      = fmtTime(totalFocusMinutes);
   document.getElementById('distracted-time').textContent = fmtTime(totalDistractedMinutes);
+  document.getElementById('coin-value').textContent      = Math.floor(coins);
 }
 
 async function poll() {
   try {
     const data = await chrome.storage.local.get([
-      'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes', 'isDistracting', 'currentSite',
+      'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes', 'isDistracting', 'currentSite', 'coins',
     ]);
     applyState(data);
   } catch {
@@ -566,9 +567,13 @@ poll();
 setInterval(poll, 2000);
 render();
 
-// ─── Settings ─────────────────────────────────────────────────────────────────
+// ─── Settings & Shop ──────────────────────────────────────────────────────────
 document.getElementById('settings-btn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
+});
+
+document.getElementById('shop-btn').addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/shop/shop.html') });
 });
 
 // ─── Debug mode ───────────────────────────────────────────────────────────────

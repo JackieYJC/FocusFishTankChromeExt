@@ -106,6 +106,26 @@ body {
 }
 .time-val { font-size: 18px; font-weight: 700; }
 
+/* ── Coin row ─────────────────────────────────────────────────────────────── */
+#coin-row {
+  display: flex; align-items: center; gap: 6px;
+  background: #0a1525; border-radius: 8px; padding: 7px 12px;
+}
+.coin-icon { font-size: 15px; line-height: 1; }
+#coin-value { font-size: 16px; font-weight: 700; color: #f5c842; min-width: 32px; }
+.coin-label {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.6px; color: #8a6a20; flex: 1;
+}
+#shop-btn {
+  padding: 4px 14px;
+  background: #2a1e00; color: #f5c842;
+  border: 1px solid #7a5a10; border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.3px; transition: background 0.2s;
+}
+#shop-btn:hover { background: #3d2e00; color: #ffd84a; }
+
 #reset-btn {
   padding: 8px; width: 100%;
   background: #152240; color: #6a9ac8;

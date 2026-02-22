@@ -15,8 +15,9 @@ const DEFAULT_WORK_HOURS = {
 };
 
 const TICK_SECS = 5;
-const DECAY    = 1.5;
-const GAIN     = 0.4;
+const DECAY     = 1.5;
+const GAIN      = 0.4;
+const COIN_RATE = 0.2; // coins per tick at focusScore 100, scales linearly with score
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
@@ -28,6 +29,7 @@ chrome.runtime.onInstalled.addListener(() => {
     currentSite: '',
     blocklist: DEFAULT_BLOCKLIST,
     workHours: DEFAULT_WORK_HOURS,
+    coins: 0,
   });
   scheduleTick();
 });
@@ -73,7 +75,7 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   if (url.startsWith('chrome://') || url.startsWith('chrome-extension://')) return;
 
   const data = await chrome.storage.local.get([
-    'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes', 'blocklist', 'workHours',
+    'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes', 'blocklist', 'workHours', 'coins',
   ]);
 
   const blocklist = data.blocklist ?? DEFAULT_BLOCKLIST;
@@ -84,13 +86,18 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const distracting = isDistracting(url, blocklist);
   const site        = getHostname(url);
 
-  const focusScore           = data.focusScore           ?? 70;
-  const totalFocusMinutes    = data.totalFocusMinutes    ?? 0;
+  const focusScore             = data.focusScore             ?? 70;
+  const totalFocusMinutes      = data.totalFocusMinutes      ?? 0;
   const totalDistractedMinutes = data.totalDistractedMinutes ?? 0;
+  const coins                  = data.coins                  ?? 0;
 
   const newScore = distracting
     ? Math.max(0,   focusScore - DECAY)
     : Math.min(100, focusScore + GAIN);
+
+  // Coins only accrue when focused; rate scales with current focus score
+  const coinGain = distracting ? 0 : (focusScore / 100) * COIN_RATE;
+  const newCoins = Math.round((coins + coinGain) * 1000) / 1000;
 
   await chrome.storage.local.set({
     focusScore: newScore,
@@ -98,5 +105,6 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
     totalDistractedMinutes:  totalDistractedMinutes + (distracting ? TICK_SECS / 60 : 0),
     isDistracting: distracting,
     currentSite: site,
+    coins: newCoins,
   });
 });
