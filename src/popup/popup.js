@@ -15,23 +15,41 @@ class Fish {
     this.wanderCD = 0;
   }
 
-  update(W, H, health) {
+  update(W, H, health, foodPellets) {
     this.phase += 0.05 + (health / 100) * 0.06;
     const spd = 0.4 + (health / 100) * this.speed;
 
-    if (--this.wanderCD <= 0) {
-      const m = this.size * 2;
-      this.tx = m + Math.random() * (W - m * 2);
-      this.ty = m + Math.random() * (H - m * 2 - 25);
-      this.wanderCD = 80 + Math.random() * 120;
+    // Find nearest active pellet within detection range
+    const DETECT = 150, EAT = 14;
+    let nearest = null, nearestD = Infinity;
+    for (const p of foodPellets) {
+      if (!p.active) continue;
+      const d = Math.hypot(p.x - this.x, p.y - this.y);
+      if (d < DETECT && d < nearestD) { nearest = p; nearestD = d; }
+    }
+
+    if (nearest) {
+      // Chase food, reset wander so fish doesn't immediately re-wander after eating
+      this.tx = nearest.x;
+      this.ty = nearest.y;
+      this.wanderCD = 30;
+      if (nearestD < EAT) nearest.eat();
+    } else {
+      if (--this.wanderCD <= 0) {
+        const m = this.size * 2;
+        this.tx = m + Math.random() * (W - m * 2);
+        this.ty = m + Math.random() * (H - m * 2 - 25);
+        this.wanderCD = 80 + Math.random() * 120;
+      }
     }
 
     const dx = this.tx - this.x;
     const dy = this.ty - this.y;
     const d = Math.hypot(dx, dy);
     if (d > 2) {
-      this.x += (dx / d) * spd;
-      this.y += (dy / d) * spd;
+      const boost = nearest ? 1.6 : 1;
+      this.x += (dx / d) * spd * boost;
+      this.y += (dy / d) * spd * boost;
       this.facing = dx > 0 ? 1 : -1;
     }
     this.y += Math.sin(this.phase * 0.7) * 0.25;
@@ -167,6 +185,81 @@ class Seaweed {
   }
 }
 
+// ─── Food Pellet ──────────────────────────────────────────────────────────────
+class FoodPellet {
+  constructor(x, y, H) {
+    this.H = H;
+    this.x = x + (Math.random() - 0.5) * 22;
+    this.y = y + (Math.random() - 0.5) * 10;
+    this.r = 2 + Math.random() * 1.5;
+    this.vy = 0.35 + Math.random() * 0.35;
+    this.vx = (Math.random() - 0.5) * 0.4;
+    this.alpha = 1;
+    this._eaten = false;
+    this.ttl = 700; // auto-expire after ~700 frames if uneaten
+  }
+
+  eat() {
+    if (this._eaten) return;
+    this._eaten = true;
+  }
+
+  update() {
+    if (this._eaten) {
+      this.alpha -= 0.07;
+      return;
+    }
+    this.ttl--;
+    if (this.ttl <= 0) { this._eaten = true; return; }
+
+    this.y += this.vy;
+    this.x += this.vx;
+    // Rest on sand
+    if (this.y > this.H - 22) {
+      this.y = this.H - 22;
+      this.vy = 0;
+      this.vx = 0;
+    }
+  }
+
+  draw(ctx) {
+    if (this.alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#d48c2a';
+    ctx.fill();
+    // Highlight
+    ctx.beginPath();
+    ctx.arc(this.x - this.r * 0.35, this.y - this.r * 0.35, this.r * 0.38, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,220,140,0.75)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  get active() { return this.alpha > 0 && !this._eaten; }
+  get alive()  { return this.alpha > 0; }
+}
+
+// ─── Ripple ───────────────────────────────────────────────────────────────────
+class Ripple {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.r = 4; this.alpha = 0.65;
+  }
+  update() { this.r += 1.8; this.alpha -= 0.045; }
+  draw(ctx) {
+    if (this.alpha <= 0) return;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,210,100,${this.alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  get alive() { return this.alpha > 0; }
+}
+
 // ─── Scene setup ─────────────────────────────────────────────────────────────
 const W = 360, H = 260;
 const canvas = document.getElementById('tank');
@@ -181,6 +274,8 @@ const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
 const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
 
 let health = 70;
+const foodPellets = [];
+const ripples = [];
 
 function drawWater() {
   const dark = (1 - health / 100) * 0.55;
@@ -226,10 +321,32 @@ function render() {
   drawWater();
   seaweeds.forEach(s => { s.update(); s.draw(ctx, health); });
   bubbles.forEach(b => { b.update(); b.draw(ctx); });
+
+  // Food & ripples
+  for (const p of foodPellets) { p.update(); p.draw(ctx); }
+  for (const r of ripples)     { r.update(); r.draw(ctx); }
+
+  // Prune dead objects
+  const prune = arr => { for (let i = arr.length - 1; i >= 0; i--) if (!arr[i].alive) arr.splice(i, 1); };
+  prune(foodPellets);
+  prune(ripples);
+
   fish.sort((a, b) => a.size - b.size);
-  fish.forEach(f => { f.update(W, H, health); f.draw(ctx, health); });
+  fish.forEach(f => { f.update(W, H, health, foodPellets); f.draw(ctx, health); });
   requestAnimationFrame(render);
 }
+
+// ─── Feed on click ────────────────────────────────────────────────────────────
+canvas.style.cursor = 'pointer';
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const y = (e.clientY - rect.top)  * (H / rect.height);
+
+  const count = 5 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < count; i++) foodPellets.push(new FoodPellet(x, y, H));
+  ripples.push(new Ripple(x, y));
+});
 
 // ─── UI ───────────────────────────────────────────────────────────────────────
 function fmtTime(min = 0) {
