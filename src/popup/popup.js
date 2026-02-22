@@ -481,9 +481,9 @@ const canvas = document.getElementById('tank');
 const ctx = canvas.getContext('2d');
 
 const fish = [
-  new Fish({ x: 180, y: 100, size: 48, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }),
-  new Fish({ x:  80, y: 160, size: 44, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }),
-  new Fish({ x: 280, y: 130, size: 42, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }),
+  new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }),
+  new Fish({ x:  80, y: 160, size: 22, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }),
+  new Fish({ x: 280, y: 130, size: 21, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }),
 ];
 const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
 const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
@@ -667,7 +667,7 @@ function spawnRewardFish() {
   const types = ['basic', 'long', 'round'];
   const type  = types[Math.floor(Math.random() * types.length)];
   const hue   = Math.floor(Math.random() * 360);
-  const maxS  = 22 + Math.floor(Math.random() * 10);
+  const maxS  = 11 + Math.floor(Math.random() * 5);
   const frySize = Math.round(maxS * 0.38);
   const m = frySize * 2;
   const x = m + Math.random() * (W - m * 2);
@@ -716,7 +716,7 @@ async function checkPendingFish() {
   const { pendingFish = [] } = await chrome.storage.local.get('pendingFish');
   if (pendingFish.length === 0) return;
   for (const { type, hue } of pendingFish) {
-    const maxS    = 22 + Math.floor(Math.random() * 10);
+    const maxS    = 11 + Math.floor(Math.random() * 5);
     const frySize = Math.round(maxS * 0.38);
     const m = frySize * 2;
     const x = m + Math.random() * (W - m * 2);
