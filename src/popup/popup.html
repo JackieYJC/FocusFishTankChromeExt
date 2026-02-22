@@ -10,13 +10,7 @@
     <div id="tank-wrapper">
       <canvas id="tank" width="360" height="260"></canvas>
       <button id="debug-btn" title="Debug Mode">🐛</button>
-      <div id="menu-wrap">
-        <button id="menu-btn" title="Menu">☰</button>
-        <div id="menu-dropdown">
-          <button id="menu-settings">⚙ Settings</button>
-          <button id="menu-shop">🛒 Shop</button>
-        </div>
-      </div>
+      <button id="settings-btn" title="Settings">⚙</button>
       <div id="pomo-burst"></div>
     </div>
 
@@ -43,6 +37,11 @@
         <button class="dbg-coin" data-amt="-10">−10</button>
         <button id="debug-pomo-btn">⏱ Finish Pomo</button>
       </div>
+    </div>
+
+    <div id="tab-bar">
+      <button class="tab-btn active" data-tab="tank">🐟 Tank</button>
+      <button class="tab-btn" data-tab="shop">🛒 Shop</button>
     </div>
 
     <div id="panel">
@@ -79,10 +78,48 @@
         <span class="coin-icon">🪙</span>
         <span id="coin-value">0</span>
         <span class="coin-label">coins</span>
-        <button id="shop-btn">Shop</button>
       </div>
 
       <button id="reset-btn">Reset Session</button>
+    </div>
+
+    <div id="shop-pane" hidden>
+      <div id="shop-pane-head">
+        <span class="coin-icon">🪙</span>
+        <span id="shop-pane-coins">0</span>
+        <span class="coin-label">coins available</span>
+      </div>
+      <div id="shop-pane-grid">
+
+        <div class="spc" data-type="basic">
+          <canvas class="spc-canvas" width="88" height="58"></canvas>
+          <div class="spc-info">
+            <span class="spc-name">Classic</span>
+            <span class="spc-desc">A cheerful, dependable companion</span>
+          </div>
+          <button class="spc-btn" data-type="basic" data-cost="30">🪙 30</button>
+        </div>
+
+        <div class="spc" data-type="long">
+          <canvas class="spc-canvas" width="88" height="58"></canvas>
+          <div class="spc-info">
+            <span class="spc-name">Tetra</span>
+            <span class="spc-desc">Sleek, fast, forked tail</span>
+          </div>
+          <button class="spc-btn" data-type="long" data-cost="60">🪙 60</button>
+        </div>
+
+        <div class="spc" data-type="round">
+          <canvas class="spc-canvas" width="88" height="58"></canvas>
+          <div class="spc-info">
+            <span class="spc-name">Puffer</span>
+            <span class="spc-desc">Chubby, spiky, big personality</span>
+          </div>
+          <button class="spc-btn" data-type="round" data-cost="100">🪙 100</button>
+        </div>
+
+      </div>
+      <p class="spc-hint">Fish arrive as a fry — colour and shape reveal as they grow.</p>
     </div>
   </div>
   <script src="popup.js"></script>

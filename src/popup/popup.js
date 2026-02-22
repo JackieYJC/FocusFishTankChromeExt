@@ -2,12 +2,13 @@
 
 // ─── Fish ─────────────────────────────────────────────────────────────────────
 class Fish {
-  constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic', stage = 'fry', id }) {
+  constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic', stage = 'fry', id, entering = false }) {
     this.id = id ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
     this.x = x;
     this.y = y;
     this.tx = x;
     this.ty = y;
+    this.enterFrames = entering ? 55 : 0;
     this.maxSize = size;
     this.type  = type;
     this.stage = stage;
@@ -40,6 +41,20 @@ class Fish {
   update(W, H, tankHealth, foodPellets) {
     if (this.stage === 'dead') {
       this.y = Math.max(this.size + 5, this.y - 0.4);
+      return;
+    }
+
+    // Drop-in animation: fall straight down from the surface
+    if (this.enterFrames > 0) {
+      this.enterFrames--;
+      this.y += 2.5;
+      this.phase += 0.06;
+      if (this.enterFrames === 0) {
+        // Hand off to wander AI from wherever it landed
+        this.tx = this.x;
+        this.ty = this.y;
+        this.wanderCD = 0;
+      }
       return;
     }
 
@@ -728,6 +743,7 @@ function applyState({ focusScore = 70, totalFocusMinutes = 0, totalDistractedMin
   document.getElementById('focus-time').textContent      = fmtTime(totalFocusMinutes);
   document.getElementById('distracted-time').textContent = fmtTime(totalDistractedMinutes);
   document.getElementById('coin-value').textContent      = Math.floor(coins);
+  updateShopPaneBalance(coins);
 
   // Coin delta animation
   if (lastCoins !== null) {
@@ -862,28 +878,131 @@ initFish().then(() => {
   setInterval(poll, 2000);
 });
 
-// ─── Hamburger menu ───────────────────────────────────────────────────────────
-const menuWrap = document.getElementById('menu-wrap');
-
-document.getElementById('menu-btn').addEventListener('click', e => {
-  e.stopPropagation();
-  menuWrap.classList.toggle('open');
-});
-
-document.addEventListener('click', () => menuWrap.classList.remove('open'));
-
-document.getElementById('menu-settings').addEventListener('click', () => {
-  menuWrap.classList.remove('open');
+// ─── Settings button ──────────────────────────────────────────────────────────
+document.getElementById('settings-btn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
-document.getElementById('menu-shop').addEventListener('click', () => {
-  menuWrap.classList.remove('open');
-  chrome.tabs.create({ url: chrome.runtime.getURL('src/settings/settings.html') + '?tab=shop' });
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.getElementById('panel').hidden     = (name !== 'tank');
+  document.getElementById('shop-pane').hidden = (name !== 'shop');
+  if (name === 'shop') {
+    chrome.storage.local.get('coins').then(({ coins = 0 }) => updateShopPaneBalance(coins)).catch(() => {});
+    renderShopPanePreviews();
+  }
+}
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-document.getElementById('shop-btn').addEventListener('click', () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL('src/settings/settings.html') + '?tab=shop' });
+// ─── Shop pane ────────────────────────────────────────────────────────────────
+// Mini fish renderers for static preview canvases
+function _miniBasic(ctx, cx, cy, s, hue) {
+  const col = `hsl(${hue},65%,45%)`, dark = `hsl(${hue},65%,33%)`, shimmer = `hsla(${hue},65%,67%,0.35)`;
+  ctx.save(); ctx.translate(cx, cy);
+  ctx.beginPath(); ctx.moveTo(-s*.65,0); ctx.lineTo(-s*1.25,-s*.58); ctx.lineTo(-s*1.25,s*.58); ctx.closePath();
+  ctx.fillStyle=dark; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,0,s,s*.52,0,0,Math.PI*2); ctx.fillStyle=col; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s*.12,s*.12,s*.52,s*.22,-0.3,0,Math.PI*2); ctx.fillStyle=shimmer; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-s*.05,-s*.52); ctx.quadraticCurveTo(s*.28,-s*.9,s*.62,-s*.52); ctx.fillStyle=dark; ctx.fill();
+  ctx.beginPath(); ctx.arc(s*.56,-s*.07,s*.18,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill();
+  ctx.beginPath(); ctx.arc(s*.60,-s*.07,s*.10,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle=dark;
+  ctx.beginPath(); ctx.arc(s*.38,s*.04,s*.13,0.15,Math.PI-0.15,true); ctx.stroke();
+  ctx.restore();
+}
+function _miniLong(ctx, cx, cy, s, hue) {
+  const col = `hsl(${hue},65%,45%)`, dark = `hsl(${hue},65%,33%)`, shimmer = `hsla(${hue},65%,67%,0.35)`;
+  ctx.save(); ctx.translate(cx, cy);
+  for (const sign of [-1,1]) {
+    ctx.beginPath(); ctx.moveTo(-s*.8,0); ctx.lineTo(-s*1.6,sign*s*.55); ctx.lineTo(-s*1.2,sign*s*.1); ctx.closePath();
+    ctx.fillStyle=dark; ctx.fill();
+  }
+  ctx.beginPath(); ctx.ellipse(0,0,s*1.4,s*.38,0,0,Math.PI*2); ctx.fillStyle=col; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,0,s*1.1,s*.12,0,0,Math.PI*2); ctx.fillStyle=dark; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s*.1,s*.1,s*.9,s*.16,-0.2,0,Math.PI*2); ctx.fillStyle=shimmer; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-s*.3,-s*.38); ctx.quadraticCurveTo(s*.1,-s*.65,s*.5,-s*.38); ctx.fillStyle=dark; ctx.fill();
+  ctx.beginPath(); ctx.arc(s*.78,-s*.06,s*.15,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill();
+  ctx.beginPath(); ctx.arc(s*.82,-s*.06,s*.08,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle=dark;
+  ctx.beginPath(); ctx.arc(s*.62,s*.04,s*.10,0.15,Math.PI-0.15,true); ctx.stroke();
+  ctx.restore();
+}
+function _miniRound(ctx, cx, cy, s, hue) {
+  const col = `hsl(${hue},65%,45%)`, dark = `hsl(${hue},65%,33%)`, shimmer = `hsla(${hue},65%,67%,0.35)`;
+  ctx.save(); ctx.translate(cx, cy);
+  ctx.beginPath(); ctx.moveTo(-s*.65,0); ctx.lineTo(-s*1.05,-s*.42); ctx.lineTo(-s*1.05,s*.42); ctx.closePath();
+  ctx.fillStyle=dark; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,0,s*.95,s*.85,0,0,Math.PI*2); ctx.fillStyle=col; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s*.1,s*.18,s*.55,s*.38,-0.3,0,Math.PI*2); ctx.fillStyle=shimmer; ctx.fill();
+  for (const sx of [-s*.25,s*.05,s*.38]) {
+    ctx.beginPath(); ctx.moveTo(sx-s*.12,-s*.85); ctx.lineTo(sx,-s*1.15); ctx.lineTo(sx+s*.12,-s*.85); ctx.closePath();
+    ctx.fillStyle=dark; ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(s*.48,-s*.18,s*.24,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill();
+  ctx.beginPath(); ctx.arc(s*.52,-s*.18,s*.14,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle=dark;
+  ctx.beginPath(); ctx.arc(s*.25,s*.18,s*.13,0.15,Math.PI-0.15,true); ctx.stroke();
+  ctx.restore();
+}
+
+const SHOP_MINI = {
+  basic: { hue: 155, fn: _miniBasic, s: 18, cx: 45, cy: 29 },
+  long:  { hue:  20, fn: _miniLong,  s: 14, cx: 48, cy: 29 },
+  round: { hue: 280, fn: _miniRound, s: 16, cx: 45, cy: 31 },
+};
+
+let _shopPreviewsRendered = false;
+function renderShopPanePreviews() {
+  if (_shopPreviewsRendered) return;
+  _shopPreviewsRendered = true;
+  document.querySelectorAll('.spc-canvas').forEach(canvas => {
+    const p = SHOP_MINI[canvas.closest('.spc').dataset.type];
+    if (!p) return;
+    const ctx = canvas.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g.addColorStop(0, 'hsl(210,68%,10%)');
+    g.addColorStop(1, 'hsl(220,75%,6%)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    p.fn(ctx, p.cx, p.cy, p.s, p.hue);
+  });
+}
+
+function updateShopPaneBalance(coins) {
+  const el = document.getElementById('shop-pane-coins');
+  if (el) el.textContent = Math.floor(coins);
+  document.querySelectorAll('.spc-btn').forEach(btn => {
+    const cost = Number(btn.dataset.cost);
+    btn.disabled = coins < cost;
+    btn.closest('.spc').classList.toggle('unaffordable', coins < cost);
+  });
+}
+
+function spawnDropFish(type, hue) {
+  const maxS = 11 + Math.floor(Math.random() * 5);
+  const x = 40 + Math.random() * (W - 80);
+  fish.push(new Fish({ x, y: -maxS, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry', entering: true }));
+  saveFish();
+}
+
+document.getElementById('shop-pane-grid').addEventListener('click', async e => {
+  const btn = e.target.closest('.spc-btn');
+  if (!btn || btn.disabled) return;
+  const type = btn.dataset.type;
+  const cost = Number(btn.dataset.cost);
+  try {
+    const { coins = 0 } = await chrome.storage.local.get('coins');
+    if (coins < cost) return;
+    const hue      = Math.floor(Math.random() * 360);
+    const newCoins = Math.round((coins - cost) * 1000) / 1000;
+    await chrome.storage.local.set({ coins: newCoins });
+    updateShopPaneBalance(newCoins);
+    document.getElementById('coin-value').textContent = Math.floor(newCoins);
+    spawnDropFish(type, hue);
+    switchTab('tank');
+  } catch { /* outside extension context */ }
 });
 
 // ─── Debug mode ───────────────────────────────────────────────────────────────

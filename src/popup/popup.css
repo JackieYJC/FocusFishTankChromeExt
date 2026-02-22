@@ -20,39 +20,18 @@ body {
   border-bottom: 2px solid #1a3a6a;
 }
 
-#menu-wrap {
+#settings-btn {
   position: absolute; top: 8px; right: 8px;
-}
-#menu-btn {
   width: 28px; height: 28px;
   background: rgba(0,0,0,0.35);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 6px;
   color: rgba(255,255,255,0.55);
-  font-size: 16px; cursor: pointer;
+  font-size: 14px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.2s, color 0.2s;
 }
-#menu-btn:hover { background: rgba(0,0,0,0.6); color: white; }
-#menu-dropdown {
-  display: none;
-  position: absolute; top: 34px; right: 0;
-  background: #0d1e32;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px; overflow: hidden;
-  min-width: 130px; z-index: 20;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-}
-#menu-wrap.open #menu-dropdown { display: block; }
-#menu-dropdown button {
-  display: block; width: 100%;
-  padding: 9px 14px;
-  background: none; border: none;
-  color: #a0bcd8; font-size: 13px;
-  text-align: left; cursor: pointer;
-  transition: background 0.15s;
-}
-#menu-dropdown button:hover { background: rgba(255,255,255,0.08); color: white; }
+#settings-btn:hover { background: rgba(0,0,0,0.6); color: white; }
 
 #debug-btn {
   position: absolute; top: 8px; left: 8px;
@@ -129,6 +108,57 @@ body {
   transition: background 0.15s;
 }
 #debug-pomo-btn:hover { background: rgba(80,160,80,0.3); }
+
+/* ── Tab bar ──────────────────────────────────────────────────────────────── */
+#tab-bar {
+  display: flex;
+  background: #091422;
+  border-bottom: 1px solid #1a3050;
+}
+.tab-btn {
+  flex: 1; padding: 7px 0;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: #5a7aaa; font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: #a0c0e8; }
+.tab-btn.active { color: #4a9aff; border-bottom-color: #4a9aff; }
+
+/* ── Shop pane ────────────────────────────────────────────────────────────── */
+#shop-pane {
+  padding: 10px 14px 12px;
+  background: #0c1b30;
+  display: flex; flex-direction: column; gap: 7px;
+}
+#shop-pane-head {
+  display: flex; align-items: center; gap: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #1a3050;
+}
+#shop-pane-coins { font-size: 15px; font-weight: 700; color: #f5c842; }
+#shop-pane-grid { display: flex; flex-direction: column; gap: 6px; }
+.spc {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px;
+  background: #0a1525; border: 1px solid #1a3050;
+  transition: opacity 0.2s;
+}
+.spc.unaffordable { opacity: 0.4; }
+.spc-canvas { border-radius: 5px; flex-shrink: 0; }
+.spc-info { flex: 1; }
+.spc-name { display: block; font-size: 13px; font-weight: 600; }
+.spc-desc { display: block; font-size: 11px; color: #4a6a8a; margin-top: 1px; }
+.spc-btn {
+  padding: 5px 11px;
+  background: #2a1e00; color: #f5c842;
+  border: 1px solid #7a5a10; border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-weight: 600;
+  white-space: nowrap; transition: background 0.15s; flex-shrink: 0;
+}
+.spc-btn:hover:not(:disabled) { background: #3d2e00; }
+.spc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.spc-hint { font-size: 11px; color: #4a6a8a; text-align: center; margin-top: 2px; }
 
 /* ── Panel ────────────────────────────────────────────────────────────────── */
 #panel {
