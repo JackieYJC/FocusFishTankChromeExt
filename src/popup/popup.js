@@ -99,23 +99,6 @@ class Fish {
     if (this.stage === 'dead') { this._drawDead(ctx); return; }
 
     const { x, y, size: s, phase, facing, hue } = this;
-    const h = (health / 100) * hue;
-
-    // Stage-based color reveal: fry=grey, juvenile=muted, adult=full color
-    let col, dark, shimmer;
-    if (this.stage === 'fry') {
-      col     = `hsl(${hue},8%,52%)`;
-      dark    = `hsl(${hue},8%,38%)`;
-      shimmer = `hsla(${hue},8%,72%,0.35)`;
-    } else if (this.stage === 'juvenile') {
-      col     = `hsl(${h},30%,42%)`;
-      dark    = `hsl(${h},30%,30%)`;
-      shimmer = `hsla(${h},30%,60%,0.35)`;
-    } else {
-      col     = `hsl(${h},65%,45%)`;
-      dark    = `hsl(${h},65%,33%)`;
-      shimmer = `hsla(${h},65%,67%,0.35)`;
-    }
 
     ctx.save();
     ctx.translate(x, y);
@@ -123,11 +106,52 @@ class Fish {
 
     const wag = Math.sin(phase) * s * 0.38;
 
+    // Fry: unified greenish-blue teardrop regardless of type
+    if (this.stage === 'fry') {
+      this._drawFry(ctx, s, wag);
+      ctx.restore();
+      return;
+    }
+
+    // Stage-based color reveal for juvenile and adult
+    const h = (health / 100) * hue;
+    let col, dark, shimmer;
+    if (this.stage === 'juvenile') {
+      const jHue = Math.round(175 + ((hue - 175) * 0.5));
+      col     = `hsl(${jHue},30%,42%)`;
+      dark    = `hsl(${jHue},30%,30%)`;
+      shimmer = `hsla(${jHue},30%,60%,0.35)`;
+    } else {
+      col     = `hsl(${h},65%,45%)`;
+      dark    = `hsl(${h},65%,33%)`;
+      shimmer = `hsla(${h},65%,67%,0.35)`;
+    }
+
     if (this.type === 'long')        this._drawLong(ctx, s, wag, col, dark, shimmer, h, health);
     else if (this.type === 'round')  this._drawRound(ctx, s, wag, col, dark, shimmer, h, health);
     else                             this._drawBasic(ctx, s, wag, col, dark, shimmer, h, health);
 
     ctx.restore();
+  }
+
+  _drawFry(ctx, s, wag) {
+    const col  = 'hsl(175,55%,48%)';
+    const dark = 'hsl(175,55%,35%)';
+    // Stubby tail
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.6, 0);
+    ctx.lineTo(-s * 0.95, -s * 0.38 + wag);
+    ctx.lineTo(-s * 0.95,  s * 0.38 + wag);
+    ctx.closePath();
+    ctx.fillStyle = dark; ctx.fill();
+    // Round body
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s, s * 0.65, 0, 0, Math.PI * 2);
+    ctx.fillStyle = col; ctx.fill();
+    // Small dot eye
+    ctx.beginPath();
+    ctx.arc(s * 0.5, -s * 0.1, s * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = '#111'; ctx.fill();
   }
 
   _drawBasic(ctx, s, wag, col, dark, shimmer, h, health) {
