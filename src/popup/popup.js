@@ -773,12 +773,16 @@ async function completePomodoro() {
   clearInterval(pomoInterval);
   pomoInterval  = null;
   updatePomoDisplay();
+  // Spawn fish BEFORE any await so saveFish() debounce starts running immediately.
+  // Calling poll() here would race against that debounce and evict the new fish
+  // (poll sees it in fish[] but not in storage yet), so update the coin display directly.
+  spawnRewardFish();
   try {
     const { coins = 0 } = await chrome.storage.local.get('coins');
-    await chrome.storage.local.set({ coins: Math.round((coins + 25) * 1000) / 1000 });
-    poll();
+    const newCoins = Math.round((coins + 25) * 1000) / 1000;
+    await chrome.storage.local.set({ coins: newCoins });
+    document.getElementById('coin-value').textContent = Math.floor(newCoins);
   } catch { /* outside extension context */ }
-  spawnRewardFish();
   showBurst('🎉 POMODORO COMPLETE! +25 coins & a new fry!');
 }
 
