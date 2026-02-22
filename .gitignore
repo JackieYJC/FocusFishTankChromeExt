@@ -31,6 +31,10 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Claude
+CLAUDE.md
+.claude/
+
 # Package manager locks (keep one, delete the other if you prefer)
 # yarn.lock
 # package-lock.json
