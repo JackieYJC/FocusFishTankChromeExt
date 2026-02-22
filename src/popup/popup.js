@@ -43,9 +43,12 @@ class Fish {
     // Drain or restore fish health based on tank health.
     // Equilibrium at tankHealth 50; drains at 2 hp/s when tankHealth 0,
     // recovers at 2 hp/s when tankHealth 100.
-    const delta = (tankHealth - 50) / 50 * (hpRate / 60);
+    // Exponential chase: fish health moves toward tankHealth at hpReact per frame.
+    // Non-linear by nature — fast when far apart, slow when close.
+    // Same coefficient drives both drain and recovery.
+    const delta = (tankHealth - this.health) * hpReact;
     this.health = Math.max(0, Math.min(100, this.health + delta));
-    if (this.health <= 0) {
+    if (this.health < 1) {
       this.stage = 'dead';
       this._applyStageSize();
       return;
@@ -391,7 +394,7 @@ let tankHealth = 70;   // drives all canvas visuals; mirrors focusScore outside 
 const foodPellets = [];
 const ripples = [];
 let debugMode = false;
-let hpRate = 2;   // hp/s max drain or recovery; adjustable in debug mode
+let hpReact = 0.002; // exponential chase coefficient (per frame); slider shows value * 1000
 
 function drawWater() {
   const dark = (1 - tankHealth / 100) * 0.55;
@@ -581,6 +584,6 @@ document.getElementById('debug-health-slider').addEventListener('input', e => {
 });
 
 document.getElementById('debug-rate-slider').addEventListener('input', e => {
-  hpRate = Number(e.target.value);
-  document.getElementById('debug-rate-val').textContent = hpRate.toFixed(1);
+  hpReact = Number(e.target.value) / 1000;
+  document.getElementById('debug-rate-val').textContent = Number(e.target.value).toFixed(1);
 });
