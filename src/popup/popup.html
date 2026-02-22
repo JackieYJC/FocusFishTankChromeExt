@@ -7,86 +7,37 @@
 </head>
 <body>
   <div id="app">
-
-    <!-- ── Main view ── -->
-    <div id="main-view">
-      <div id="tank-wrapper">
-        <canvas id="tank" width="360" height="260"></canvas>
-        <button id="settings-btn" title="Settings">⚙</button>
-      </div>
-
-      <div id="panel">
-        <div id="score-row">
-          <span class="label">Focus</span>
-          <div id="score-bar-wrap"><div id="score-bar"></div></div>
-          <span id="score-value">70</span>
-        </div>
-
-        <div id="status-row">
-          <span id="status-dot"></span>
-          <span id="status-text">Loading…</span>
-        </div>
-
-        <div id="time-row">
-          <div class="time-cell">
-            <span class="label">Focused</span>
-            <span id="focus-time" class="time-val">0m</span>
-          </div>
-          <div class="divider"></div>
-          <div class="time-cell">
-            <span class="label">Distracted</span>
-            <span id="distracted-time" class="time-val">0m</span>
-          </div>
-        </div>
-
-        <button id="reset-btn">Reset Session</button>
-      </div>
+    <div id="tank-wrapper">
+      <canvas id="tank" width="360" height="260"></canvas>
+      <button id="settings-btn" title="Settings">⚙</button>
     </div>
 
-    <!-- ── Settings view ── -->
-    <div id="settings-view" class="hidden">
-      <div id="settings-header">
-        <button id="back-btn">← Back</button>
-        <span>Settings</span>
+    <div id="panel">
+      <div id="score-row">
+        <span class="label">Focus</span>
+        <div id="score-bar-wrap"><div id="score-bar"></div></div>
+        <span id="score-value">70</span>
       </div>
 
-      <div id="settings-content">
-
-        <section class="settings-section">
-          <h3>Work Hours</h3>
-          <label class="toggle-row">
-            <input type="checkbox" id="wh-enabled">
-            <span>Only track during work hours</span>
-          </label>
-          <div id="wh-config">
-            <div id="days-grid">
-              <label class="day-pill"><input type="checkbox" id="day-1"><span>Mon</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-2"><span>Tue</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-3"><span>Wed</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-4"><span>Thu</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-5"><span>Fri</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-6"><span>Sat</span></label>
-              <label class="day-pill"><input type="checkbox" id="day-0"><span>Sun</span></label>
-            </div>
-            <div id="time-inputs">
-              <label>From <input type="time" id="wh-start" value="09:00"></label>
-              <label>To <input type="time" id="wh-end" value="18:00"></label>
-            </div>
-          </div>
-        </section>
-
-        <section class="settings-section">
-          <h3>Distracting Sites</h3>
-          <ul id="blocklist"></ul>
-          <div id="add-site-row">
-            <input type="text" id="new-site" placeholder="example.com">
-            <button id="add-site-btn">Add</button>
-          </div>
-        </section>
-
+      <div id="status-row">
+        <span id="status-dot"></span>
+        <span id="status-text">Loading…</span>
       </div>
+
+      <div id="time-row">
+        <div class="time-cell">
+          <span class="label">Focused</span>
+          <span id="focus-time" class="time-val">0m</span>
+        </div>
+        <div class="divider"></div>
+        <div class="time-cell">
+          <span class="label">Distracted</span>
+          <span id="distracted-time" class="time-val">0m</span>
+        </div>
+      </div>
+
+      <button id="reset-btn">Reset Session</button>
     </div>
-
   </div>
   <script src="popup.js"></script>
 </body>
