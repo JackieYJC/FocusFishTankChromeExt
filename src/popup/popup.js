@@ -712,12 +712,27 @@ document.getElementById('debug-pomo-btn').addEventListener('click', () => {
 
 updatePomoDisplay();
 
+async function checkPendingFish() {
+  const { pendingFish = [] } = await chrome.storage.local.get('pendingFish');
+  if (pendingFish.length === 0) return;
+  for (const { type, hue } of pendingFish) {
+    const maxS    = 22 + Math.floor(Math.random() * 10);
+    const frySize = Math.round(maxS * 0.38);
+    const m = frySize * 2;
+    const x = m + Math.random() * (W - m * 2);
+    const y = m + Math.random() * (H - m * 2 - 25);
+    fish.push(new Fish({ x, y, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
+  }
+  await chrome.storage.local.set({ pendingFish: [] });
+}
+
 async function poll() {
   try {
     const data = await chrome.storage.local.get([
       'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes', 'isDistracting', 'currentSite', 'coins',
     ]);
     applyState(data);
+    await checkPendingFish();
   } catch {
     // Running outside extension context (e.g. browser preview)
     applyState({ focusScore: health });

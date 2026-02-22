@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Focus Fish Tank — Shop</title>
+  <link rel="stylesheet" href="shop.css">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="logo">🐟</div>
+        <div>
+          <h1>Fish Shop</h1>
+          <p class="subtitle">Spend your focus coins on new fish</p>
+        </div>
+        <div id="balance-chip">
+          <span>🪙</span>
+          <span id="balance">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div id="shop-grid">
+
+        <div class="fish-card" data-type="basic" data-cost="30">
+          <canvas class="fish-preview" width="140" height="90"></canvas>
+          <div class="fish-info">
+            <span class="fish-name">Classic</span>
+            <span class="fish-desc">A cheerful, dependable companion</span>
+          </div>
+          <button class="buy-btn" data-type="basic" data-cost="30">🪙 30</button>
+        </div>
+
+        <div class="fish-card" data-type="long" data-cost="60">
+          <canvas class="fish-preview" width="140" height="90"></canvas>
+          <div class="fish-info">
+            <span class="fish-name">Tetra</span>
+            <span class="fish-desc">Sleek, fast, forked tail</span>
+          </div>
+          <button class="buy-btn" data-type="long" data-cost="60">🪙 60</button>
+        </div>
+
+        <div class="fish-card" data-type="round" data-cost="100">
+          <canvas class="fish-preview" width="140" height="90"></canvas>
+          <div class="fish-info">
+            <span class="fish-name">Puffer</span>
+            <span class="fish-desc">Chubby, spiky, big personality</span>
+          </div>
+          <button class="buy-btn" data-type="round" data-cost="100">🪙 100</button>
+        </div>
+
+      </div>
+
+      <p class="hint">New fish arrive as a grey fry — their colour reveals as they grow.</p>
+    </main>
+  </div>
+
+  <div id="toast"></div>
+  <script src="shop.js"></script>
+</body>
+</html>
