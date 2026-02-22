@@ -2,7 +2,8 @@
 
 // ─── Fish ─────────────────────────────────────────────────────────────────────
 class Fish {
-  constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic', stage = 'fry' }) {
+  constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic', stage = 'fry', id }) {
+    this.id = id ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
     this.x = x;
     this.y = y;
     this.tx = x;
@@ -29,6 +30,7 @@ class Fish {
     this.stage = order[(order.indexOf(this.stage) + 1) % order.length];
     this._applyStageSize();
     this.wanderCD = 0;
+    saveFish();
   }
 
   hitTest(px, py) {
@@ -52,6 +54,7 @@ class Fish {
     if (this.health < 1) {
       this.stage = 'dead';
       this._applyStageSize();
+      saveFish();
       return;
     }
 
@@ -504,11 +507,7 @@ const W = 360, H = 260;
 const canvas = document.getElementById('tank');
 const ctx = canvas.getContext('2d');
 
-const fish = [
-  new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }),
-  new Fish({ x:  80, y: 160, size: 22, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }),
-  new Fish({ x: 280, y: 130, size: 21, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }),
-];
+let fish = [];
 const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
 const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
 
@@ -519,6 +518,45 @@ const ripples = [];
 let debugMode = false;
 let hpReact        = 0.002; // exponential chase coefficient (per frame); slider shows value * 1000
 let coinAccrualMult = 1;    // debug multiplier for coin accrual speed
+
+// ─── Fish persistence ─────────────────────────────────────────────────────────
+let saveFishTimer = null;
+function saveFish() {
+  clearTimeout(saveFishTimer);
+  saveFishTimer = setTimeout(() => {
+    const snapshot = fish.map(f => ({
+      id: f.id, type: f.type, hue: f.hue, stage: f.stage,
+      health: f.health, maxSize: f.maxSize, speed: f.speed,
+    }));
+    chrome.storage.local.set({ tankFish: snapshot }).catch(() => {});
+  }, 250);
+}
+
+async function initFish() {
+  try {
+    const { tankFish } = await chrome.storage.local.get('tankFish');
+    if (tankFish && tankFish.length > 0) {
+      for (const f of tankFish) {
+        const m = Math.round(f.maxSize * 0.38) * 2;
+        const x = m + Math.random() * (W - m * 2);
+        const y = m + Math.random() * (H - m * 2 - 25);
+        const newFish = new Fish({ id: f.id, x, y, size: f.maxSize, speed: f.speed, hue: f.hue, type: f.type, stage: f.stage });
+        newFish.health = f.health;
+        fish.push(newFish);
+      }
+    } else {
+      fish.push(new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }));
+      fish.push(new Fish({ x:  80, y: 160, size: 22, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }));
+      fish.push(new Fish({ x: 280, y: 130, size: 21, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }));
+      saveFish();
+    }
+  } catch {
+    // Outside extension context
+    fish.push(new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }));
+    fish.push(new Fish({ x:  80, y: 160, size: 22, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }));
+    fish.push(new Fish({ x: 280, y: 130, size: 21, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }));
+  }
+}
 
 function drawWater() {
   const dark = (1 - tankHealth / 100) * 0.55;
@@ -697,6 +735,7 @@ function spawnRewardFish() {
   const x = m + Math.random() * (W - m * 2);
   const y = m + Math.random() * (H - m * 2 - 25);
   fish.push(new Fish({ x, y, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
+  saveFish();
 }
 
 async function completePomodoro() {
@@ -747,15 +786,29 @@ async function checkPendingFish() {
     const y = m + Math.random() * (H - m * 2 - 25);
     fish.push(new Fish({ x, y, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
   }
+  saveFish();
   await chrome.storage.local.set({ pendingFish: [] });
 }
 
 async function poll() {
   try {
     const data = await chrome.storage.local.get([
-      'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes', 'isDistracting', 'currentSite', 'coins',
+      'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes',
+      'isDistracting', 'currentSite', 'coins', 'tankFish',
     ]);
     applyState(data);
+    // Sync released fish: remove any whose id is no longer in tankFish
+    if (data.tankFish) {
+      const storedIds = new Set(data.tankFish.map(f => f.id));
+      let changed = false;
+      for (let i = fish.length - 1; i >= 0; i--) {
+        if (fish[i].id && !storedIds.has(fish[i].id)) {
+          fish.splice(i, 1);
+          changed = true;
+        }
+      }
+      if (changed) saveFish();
+    }
     await checkPendingFish();
   } catch {
     // Running outside extension context (e.g. browser preview)
@@ -768,9 +821,11 @@ document.getElementById('reset-btn').addEventListener('click', async () => {
   poll();
 });
 
-poll();
-setInterval(poll, 2000);
 render();
+initFish().then(() => {
+  poll();
+  setInterval(poll, 2000);
+});
 
 // ─── Settings & Shop ──────────────────────────────────────────────────────────
 document.getElementById('settings-btn').addEventListener('click', () => {
