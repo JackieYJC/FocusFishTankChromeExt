@@ -338,66 +338,72 @@ class Fish {
 
   _drawDead(ctx) {
     const { x, y, size: s, phase, facing } = this;
+    const wag     = Math.sin(phase) * s * 0.38;
+    const col     = '#777';
+    const dark    = '#555';
+    const shimmer = 'rgba(180,180,180,0.35)';
 
-    // Grayscale upside-down body (y-axis flipped)
+    // Grayscale upside-down body (y-axis flipped), shape matches live species
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(facing, -1);
 
-    const wag = Math.sin(phase) * s * 0.38;
-
-    // Tail
-    ctx.beginPath();
-    ctx.moveTo(-s * 0.65, 0);
-    ctx.lineTo(-s * 1.25, -s * 0.58 + wag);
-    ctx.lineTo(-s * 1.25,  s * 0.58 + wag);
-    ctx.closePath();
-    ctx.fillStyle = '#555';
-    ctx.fill();
-
-    // Body
-    ctx.beginPath();
-    ctx.ellipse(0, 0, s, s * 0.52, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#777';
-    ctx.fill();
-
-    // Belly shimmer
-    ctx.beginPath();
-    ctx.ellipse(s * 0.12, s * 0.12, s * 0.52, s * 0.22, -0.3, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(180,180,180,0.35)';
-    ctx.fill();
-
-    // Dorsal fin
-    ctx.beginPath();
-    ctx.moveTo(-s * 0.05, -s * 0.52);
-    ctx.quadraticCurveTo(s * 0.28, -s * 0.9, s * 0.62, -s * 0.52);
-    ctx.fillStyle = '#555';
-    ctx.fill();
-
-    // Eye socket
-    ctx.beginPath();
-    ctx.arc(s * 0.56, -s * 0.07, s * 0.18, 0, Math.PI * 2);
-    ctx.fillStyle = '#999';
-    ctx.fill();
+    if (this.type === 'long') {
+      // Forked tail
+      for (const sign of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.8, 0);
+        ctx.lineTo(-s * 1.6, sign * s * 0.55 + wag);
+        ctx.lineTo(-s * 1.2, sign * s * 0.1  + wag * 0.5);
+        ctx.closePath();
+        ctx.fillStyle = dark; ctx.fill();
+      }
+      ctx.beginPath(); ctx.ellipse(0, 0, s * 1.4, s * 0.38, 0, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, 0, s * 1.1, s * 0.12, 0, 0, Math.PI * 2); ctx.fillStyle = dark; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(s * 0.1, s * 0.1, s * 0.9, s * 0.16, -0.2, 0, Math.PI * 2); ctx.fillStyle = shimmer; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s * 0.3, -s * 0.38); ctx.quadraticCurveTo(s * 0.1, -s * 0.65, s * 0.5, -s * 0.38); ctx.fillStyle = dark; ctx.fill();
+      ctx.beginPath(); ctx.arc(s * 0.78, -s * 0.06, s * 0.15, 0, Math.PI * 2); ctx.fillStyle = '#999'; ctx.fill();
+    } else if (this.type === 'round') {
+      ctx.beginPath(); ctx.moveTo(-s * 0.65, 0); ctx.lineTo(-s * 1.05, -s * 0.42 + wag); ctx.lineTo(-s * 1.05, s * 0.42 + wag); ctx.closePath(); ctx.fillStyle = dark; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.95, s * 0.85, 0, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(s * 0.1, s * 0.18, s * 0.55, s * 0.38, -0.3, 0, Math.PI * 2); ctx.fillStyle = shimmer; ctx.fill();
+      for (const sx of [-s * 0.25, s * 0.05, s * 0.38]) {
+        ctx.beginPath(); ctx.moveTo(sx - s * 0.12, -s * 0.85); ctx.lineTo(sx, -s * 1.15); ctx.lineTo(sx + s * 0.12, -s * 0.85); ctx.closePath();
+        ctx.fillStyle = dark; ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(s * 0.48, -s * 0.18, s * 0.24, 0, Math.PI * 2); ctx.fillStyle = '#999'; ctx.fill();
+    } else {
+      // basic
+      ctx.beginPath(); ctx.moveTo(-s * 0.65, 0); ctx.lineTo(-s * 1.25, -s * 0.58 + wag); ctx.lineTo(-s * 1.25, s * 0.58 + wag); ctx.closePath(); ctx.fillStyle = dark; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.52, 0, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(s * 0.12, s * 0.12, s * 0.52, s * 0.22, -0.3, 0, Math.PI * 2); ctx.fillStyle = shimmer; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s * 0.05, -s * 0.52); ctx.quadraticCurveTo(s * 0.28, -s * 0.9, s * 0.62, -s * 0.52); ctx.fillStyle = dark; ctx.fill();
+      ctx.beginPath(); ctx.arc(s * 0.56, -s * 0.07, s * 0.18, 0, Math.PI * 2); ctx.fillStyle = '#999'; ctx.fill();
+    }
 
     ctx.restore();
 
     // X eyes — separate pass without y-flip so they sit at the visual eye position
+    // Eye coords are the y-flipped mirror of the live draw positions
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(facing, 1);
 
-    const ex = s * 0.56;
-    const ey = s * 0.07; // mirrored from normal -s*0.07 due to y-flip above
-    const r  = s * 0.10;
+    let ex, ey, eyeR;
+    if (this.type === 'long') {
+      ex = s * 0.78; ey = s * 0.06; eyeR = s * 0.08;
+    } else if (this.type === 'round') {
+      ex = s * 0.48; ey = s * 0.18; eyeR = s * 0.10;
+    } else {
+      ex = s * 0.56; ey = s * 0.07; eyeR = s * 0.10;
+    }
+
     ctx.strokeStyle = '#333';
     ctx.lineWidth = Math.max(1, s * 0.07);
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(ex - r, ey - r);
-    ctx.lineTo(ex + r, ey + r);
-    ctx.moveTo(ex + r, ey - r);
-    ctx.lineTo(ex - r, ey + r);
+    ctx.moveTo(ex - eyeR, ey - eyeR); ctx.lineTo(ex + eyeR, ey + eyeR);
+    ctx.moveTo(ex + eyeR, ey - eyeR); ctx.lineTo(ex - eyeR, ey + eyeR);
     ctx.stroke();
 
     ctx.restore();
