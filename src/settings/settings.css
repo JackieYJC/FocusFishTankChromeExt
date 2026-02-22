@@ -206,6 +206,48 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
 .released-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .muted-text    { color: var(--muted); font-size: 13px; }
 
+/* ── Inline shop ─────────────────────────────────────────────────────────── */
+.shop-header-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+#shop-balance-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: #1a2200; border: 1px solid #5a4a10;
+  border-radius: 20px; padding: 6px 14px;
+  font-size: 15px; font-weight: 700; color: #f5c842;
+  flex-shrink: 0;
+}
+
+#shop-grid-inline { display: flex; flex-direction: column; gap: 10px; }
+
+.shop-fish-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px; border-radius: 10px;
+  background: var(--card); border: 1px solid var(--border);
+  transition: opacity 0.2s;
+}
+.shop-fish-card.unaffordable { opacity: 0.45; }
+
+.fish-preview-inline { border-radius: 6px; flex-shrink: 0; }
+
+.shop-fish-info { flex: 1; }
+.shop-fish-name { display: block; font-size: 14px; font-weight: 600; }
+.shop-fish-desc { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.buy-btn {
+  padding: 6px 16px;
+  background: #2a1e00; color: #f5c842;
+  border: 1px solid #7a5a10; border-radius: 6px;
+  cursor: pointer; font-size: 13px; font-weight: 600;
+  transition: background 0.2s; flex-shrink: 0; white-space: nowrap;
+}
+.buy-btn:hover:not(:disabled) { background: #3d2e00; }
+.buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.shop-hint { font-size: 12px; color: var(--muted); margin-top: 16px; text-align: center; }
+
 /* ── Saved toast ──────────────────────────────────────────────────────────── */
 #toast {
   position: fixed; bottom: 24px; right: 24px;

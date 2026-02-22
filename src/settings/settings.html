@@ -14,6 +14,7 @@
       <button class="nav-btn active" data-page="preferences">Preferences</button>
       <button class="nav-btn" data-page="fish">My Fish</button>
       <button class="nav-btn" data-page="released">Released Fish</button>
+      <button class="nav-btn" data-page="shop">🛒 Shop</button>
     </nav>
 
     <main class="settings-main">
@@ -91,6 +92,51 @@
         <h2 class="page-title">Released Fish</h2>
         <p class="page-desc">Fish you've set free into the wild.</p>
         <div id="released-list"></div>
+      </section>
+
+      <!-- Shop page -->
+      <section id="page-shop" hidden>
+        <div class="shop-header-row">
+          <div>
+            <h2 class="page-title">Fish Shop</h2>
+            <p class="page-desc">Spend your focus coins on new fish</p>
+          </div>
+          <div id="shop-balance-chip">
+            <span>🪙</span>
+            <span id="shop-balance">0</span>
+          </div>
+        </div>
+        <div id="shop-grid-inline">
+
+          <div class="shop-fish-card" data-type="basic">
+            <canvas class="fish-preview-inline" width="110" height="70"></canvas>
+            <div class="shop-fish-info">
+              <span class="shop-fish-name">Classic</span>
+              <span class="shop-fish-desc">A cheerful, dependable companion</span>
+            </div>
+            <button class="buy-btn" data-type="basic" data-cost="30">🪙 30</button>
+          </div>
+
+          <div class="shop-fish-card" data-type="long">
+            <canvas class="fish-preview-inline" width="110" height="70"></canvas>
+            <div class="shop-fish-info">
+              <span class="shop-fish-name">Tetra</span>
+              <span class="shop-fish-desc">Sleek, fast, forked tail</span>
+            </div>
+            <button class="buy-btn" data-type="long" data-cost="60">🪙 60</button>
+          </div>
+
+          <div class="shop-fish-card" data-type="round">
+            <canvas class="fish-preview-inline" width="110" height="70"></canvas>
+            <div class="shop-fish-info">
+              <span class="shop-fish-name">Puffer</span>
+              <span class="shop-fish-desc">Chubby, spiky, big personality</span>
+            </div>
+            <button class="buy-btn" data-type="round" data-cost="100">🪙 100</button>
+          </div>
+
+        </div>
+        <p class="shop-hint">New fish arrive as a grey fry — their colour reveals as they grow.</p>
       </section>
 
     </main>
