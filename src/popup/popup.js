@@ -43,7 +43,7 @@ class Fish {
     // Drain or restore fish health based on tank health.
     // Equilibrium at tankHealth 50; drains at 2 hp/s when tankHealth 0,
     // recovers at 2 hp/s when tankHealth 100.
-    const delta = (tankHealth - 50) / 50 * (2 / 60);
+    const delta = (tankHealth - 50) / 50 * (hpRate / 60);
     this.health = Math.max(0, Math.min(100, this.health + delta));
     if (this.health <= 0) {
       this.stage = 'dead';
@@ -391,6 +391,7 @@ let tankHealth = 70;   // drives all canvas visuals; mirrors focusScore outside 
 const foodPellets = [];
 const ripples = [];
 let debugMode = false;
+let hpRate = 2;   // hp/s max drain or recovery; adjustable in debug mode
 
 function drawWater() {
   const dark = (1 - tankHealth / 100) * 0.55;
@@ -577,4 +578,9 @@ document.getElementById('debug-btn').addEventListener('click', () => {
 document.getElementById('debug-health-slider').addEventListener('input', e => {
   tankHealth = Number(e.target.value);
   document.getElementById('debug-health-val').textContent = tankHealth;
+});
+
+document.getElementById('debug-rate-slider').addEventListener('input', e => {
+  hpRate = Number(e.target.value);
+  document.getElementById('debug-rate-val').textContent = hpRate.toFixed(1);
 });

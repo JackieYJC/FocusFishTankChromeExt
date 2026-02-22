@@ -55,8 +55,8 @@ body {
   font: bold 11px monospace;
 }
 #debug-panel.visible { display: flex; flex-direction: column; gap: 4px; }
-#debug-health-row { display: flex; justify-content: space-between; }
-#debug-health-slider { width: 100%; accent-color: #ffaa44; cursor: ew-resize; }
+#debug-health-row, #debug-rate-row { display: flex; justify-content: space-between; }
+#debug-health-slider, #debug-rate-slider { width: 100%; accent-color: #ffaa44; cursor: ew-resize; }
 
 /* ── Panel ────────────────────────────────────────────────────────────────── */
 #panel {
