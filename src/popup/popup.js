@@ -858,13 +858,28 @@ initFish().then(() => {
   setInterval(poll, 2000);
 });
 
-// ─── Settings & Shop ──────────────────────────────────────────────────────────
-document.getElementById('settings-btn').addEventListener('click', () => {
+// ─── Hamburger menu ───────────────────────────────────────────────────────────
+const menuWrap = document.getElementById('menu-wrap');
+
+document.getElementById('menu-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  menuWrap.classList.toggle('open');
+});
+
+document.addEventListener('click', () => menuWrap.classList.remove('open'));
+
+document.getElementById('menu-settings').addEventListener('click', () => {
+  menuWrap.classList.remove('open');
   chrome.runtime.openOptionsPage();
 });
 
+document.getElementById('menu-shop').addEventListener('click', () => {
+  menuWrap.classList.remove('open');
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/settings/settings.html') + '?tab=shop' });
+});
+
 document.getElementById('shop-btn').addEventListener('click', () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL('src/shop/shop.html') });
+  chrome.tabs.create({ url: chrome.runtime.getURL('src/settings/settings.html') + '?tab=shop' });
 });
 
 // ─── Debug mode ───────────────────────────────────────────────────────────────

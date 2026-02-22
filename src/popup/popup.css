@@ -17,18 +17,39 @@ body {
   border-bottom: 2px solid #1a3a6a;
 }
 
-#settings-btn {
+#menu-wrap {
   position: absolute; top: 8px; right: 8px;
+}
+#menu-btn {
   width: 28px; height: 28px;
   background: rgba(0,0,0,0.35);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 6px;
   color: rgba(255,255,255,0.55);
-  font-size: 14px; cursor: pointer;
+  font-size: 16px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.2s, color 0.2s;
 }
-#settings-btn:hover { background: rgba(0,0,0,0.6); color: white; }
+#menu-btn:hover { background: rgba(0,0,0,0.6); color: white; }
+#menu-dropdown {
+  display: none;
+  position: absolute; top: 34px; right: 0;
+  background: #0d1e32;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; overflow: hidden;
+  min-width: 130px; z-index: 20;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+#menu-wrap.open #menu-dropdown { display: block; }
+#menu-dropdown button {
+  display: block; width: 100%;
+  padding: 9px 14px;
+  background: none; border: none;
+  color: #a0bcd8; font-size: 13px;
+  text-align: left; cursor: pointer;
+  transition: background 0.15s;
+}
+#menu-dropdown button:hover { background: rgba(255,255,255,0.08); color: white; }
 
 #debug-btn {
   position: absolute; top: 8px; left: 8px;
