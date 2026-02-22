@@ -14,6 +14,7 @@ class Fish {
     this.phase = Math.random() * Math.PI * 2;
     this.facing = 1;
     this.wanderCD = 0;
+    this.health = 100;
     this._applyStageSize();
   }
 
@@ -39,9 +40,20 @@ class Fish {
       return;
     }
 
-    this.phase += 0.05 + (tankHealth / 100) * 0.06;
+    // Drain or restore fish health based on tank health.
+    // Equilibrium at tankHealth 50; drains at 2 hp/s when tankHealth 0,
+    // recovers at 2 hp/s when tankHealth 100.
+    const delta = (tankHealth - 50) / 50 * (2 / 60);
+    this.health = Math.max(0, Math.min(100, this.health + delta));
+    if (this.health <= 0) {
+      this.stage = 'dead';
+      this._applyStageSize();
+      return;
+    }
+
+    this.phase += 0.05 + (this.health / 100) * 0.06;
     const speedMult = this.stage === 'fry' ? 1.25 : 1.0;
-    const spd = (0.4 + (tankHealth / 100) * this.speed) * speedMult;
+    const spd = (0.4 + (this.health / 100) * this.speed) * speedMult;
 
     // Find nearest active pellet within detection range
     const DETECT = 150, EAT = 14;
@@ -435,7 +447,7 @@ function render() {
   prune(ripples);
 
   fish.sort((a, b) => a.size - b.size);
-  fish.forEach(f => { f.update(W, H, tankHealth, foodPellets); f.draw(ctx, tankHealth); });
+  fish.forEach(f => { f.update(W, H, tankHealth, foodPellets); f.draw(ctx, f.health); });
 
   if (debugMode) {
     ctx.textAlign = 'center';
