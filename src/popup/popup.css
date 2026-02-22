@@ -161,6 +161,10 @@ body {
 .spc-hint { font-size: 11px; color: #4a6a8a; text-align: center; margin-top: 2px; }
 
 /* ── Panel ────────────────────────────────────────────────────────────────── */
+/* display:flex on #panel and #shop-pane beats the UA [hidden]{display:none},
+   so we need to re-enforce it at higher specificity */
+#panel[hidden], #shop-pane[hidden] { display: none !important; }
+
 #panel {
   padding: 14px 16px;
   display: flex; flex-direction: column; gap: 10px;
