@@ -1,15 +1,22 @@
 'use strict';
 
-const DISTRACTING_SITES = [
+const DEFAULT_BLOCKLIST = [
   'twitter.com', 'x.com', 'reddit.com', 'facebook.com',
   'instagram.com', 'tiktok.com', 'youtube.com', 'twitch.tv',
   'netflix.com', 'hulu.com', 'disneyplus.com', 'primevideo.com',
   'pinterest.com', 'snapchat.com', 'tumblr.com',
 ];
 
-const TICK_SECS = 5;   // alarm interval
-const DECAY    = 1.5;  // score lost per tick on a distracting site
-const GAIN     = 0.4;  // score gained per tick on a focused site
+const DEFAULT_WORK_HOURS = {
+  enabled: true,
+  start: '09:00',
+  end: '18:00',
+  days: [1, 2, 3, 4, 5], // Mon–Fri
+};
+
+const TICK_SECS = 5;
+const DECAY    = 1.5;
+const GAIN     = 0.4;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
@@ -19,6 +26,8 @@ chrome.runtime.onInstalled.addListener(() => {
     totalDistractedMinutes: 0,
     isDistracting: false,
     currentSite: '',
+    blocklist: DEFAULT_BLOCKLIST,
+    workHours: DEFAULT_WORK_HOURS,
   });
   scheduleTick();
 });
@@ -38,9 +47,19 @@ function getHostname(url) {
   }
 }
 
-function isDistracting(url) {
+function isDistracting(url, blocklist) {
   const host = getHostname(url);
-  return DISTRACTING_SITES.some(s => host === s || host.endsWith('.' + s));
+  return blocklist.some(s => host === s || host.endsWith('.' + s));
+}
+
+function isWithinWorkHours({ enabled, start, end, days }) {
+  if (!enabled) return true;
+  const now = new Date();
+  if (!days.includes(now.getDay())) return false;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  return nowMins >= sh * 60 + sm && nowMins < eh * 60 + em;
 }
 
 // ─── Tick ─────────────────────────────────────────────────────────────────────
@@ -53,14 +72,21 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const url = tab.url;
   if (url.startsWith('chrome://') || url.startsWith('chrome-extension://')) return;
 
-  const distracting = isDistracting(url);
-  const site = getHostname(url);
+  const data = await chrome.storage.local.get([
+    'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes', 'blocklist', 'workHours',
+  ]);
 
-  const {
-    focusScore = 70,
-    totalFocusMinutes = 0,
-    totalDistractedMinutes = 0,
-  } = await chrome.storage.local.get(['focusScore', 'totalFocusMinutes', 'totalDistractedMinutes']);
+  const blocklist = data.blocklist ?? DEFAULT_BLOCKLIST;
+  const workHours = data.workHours ?? DEFAULT_WORK_HOURS;
+
+  if (!isWithinWorkHours(workHours)) return;
+
+  const distracting = isDistracting(url, blocklist);
+  const site        = getHostname(url);
+
+  const focusScore           = data.focusScore           ?? 70;
+  const totalFocusMinutes    = data.totalFocusMinutes    ?? 0;
+  const totalDistractedMinutes = data.totalDistractedMinutes ?? 0;
 
   const newScore = distracting
     ? Math.max(0,   focusScore - DECAY)
@@ -68,8 +94,8 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
 
   await chrome.storage.local.set({
     focusScore: newScore,
-    totalFocusMinutes:      totalFocusMinutes      + (distracting ? 0 : TICK_SECS / 60),
-    totalDistractedMinutes: totalDistractedMinutes + (distracting ? TICK_SECS / 60 : 0),
+    totalFocusMinutes:       totalFocusMinutes      + (distracting ? 0 : TICK_SECS / 60),
+    totalDistractedMinutes:  totalDistractedMinutes + (distracting ? TICK_SECS / 60 : 0),
     isDistracting: distracting,
     currentSite: site,
   });
