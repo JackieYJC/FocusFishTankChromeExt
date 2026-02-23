@@ -123,9 +123,10 @@ export class Fish {
       return;
     }
 
-    this.phase += 0.05 + (this.health / 100) * 0.06;
-    const speedMult = this.stage === 'fry' ? 1.25 : 1.0;
-    const spd       = (0.4 + (this.health / 100) * this.speed) * speedMult;
+    // Slower tail wag so healthy fish look graceful, not frantic
+    this.phase += 0.038 + (this.health / 100) * 0.022;
+    const speedMult = this.stage === 'fry' ? 1.1 : 1.0;
+    const spd       = (0.5 + (this.health / 100) * this.speed * 0.65) * speedMult;
 
     // Food seeking
     const DETECT = 150, EAT = 14;
@@ -151,19 +152,19 @@ export class Fish {
         const m = this.size * 2;
         this.tx = m + Math.random() * (_W - m * 2);
         this.ty = m + Math.random() * (_H - m * 2 - 25);
-        this.wanderCD = 80 + Math.random() * 120;
+        this.wanderCD = 200 + Math.random() * 180;
       }
     }
 
     const dx = this.tx - this.x, dy = this.ty - this.y;
     const d  = Math.hypot(dx, dy);
     if (d > 2) {
-      const boost = nearest ? 1.6 : 1;
+      const boost = nearest ? 1.4 : 1;
       this.x += (dx / d) * spd * boost;
       this.y += (dy / d) * spd * boost;
       this.facing = dx > 0 ? 1 : -1;
     }
-    this.y += Math.sin(this.phase * 0.7) * 0.25;
+    this.y += Math.sin(this.phase * 0.6) * 0.18;
 
     // Time-based growth
     if (this.stage === 'fry' || this.stage === 'juvenile') {
