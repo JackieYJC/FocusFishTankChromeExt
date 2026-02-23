@@ -4,145 +4,342 @@
 
 import type { FishType, FishStage } from './types';
 
-// ── Internal colour helpers ────────────────────────────────────────────────
+// ── Colour palette ─────────────────────────────────────────────────────────
 
-interface DrawColors { col: string; dark: string; shimmer: string; }
+interface DrawColors {
+  hue:       number;   // raw species hue (for gradients, iris, glow)
+  col:       string;   // main body fill
+  dark:      string;   // fins, tail, outline, stripe
+  highlight: string;   // bright gradient centre
+  belly:     string;   // pale underside
+  shimmer:   string;   // top-side highlight stripe
+}
 
 function adultColors(hue: number, health: number): DrawColors {
   const h = (health / 100) * hue;
   return {
-    col:     `hsl(${h},65%,45%)`,
-    dark:    `hsl(${h},65%,33%)`,
-    shimmer: `hsla(${h},65%,67%,0.35)`,
+    hue,
+    col:       `hsl(${h},82%,50%)`,
+    dark:      `hsl(${h},76%,28%)`,
+    highlight: `hsl(${h},88%,78%)`,
+    belly:     `hsla(${h},55%,84%,0.62)`,
+    shimmer:   `hsla(${h},95%,90%,0.52)`,
   };
 }
 
 function juvenileColors(hue: number): DrawColors {
-  const jHue = Math.round(175 + (hue - 175) * 0.5);
+  const h = Math.round(175 + (hue - 175) * 0.5);
   return {
-    col:     `hsl(${jHue},30%,42%)`,
-    dark:    `hsl(${jHue},30%,30%)`,
-    shimmer: `hsla(${jHue},30%,60%,0.35)`,
+    hue: h,
+    col:       `hsl(${h},36%,46%)`,
+    dark:      `hsl(${h},36%,30%)`,
+    highlight: `hsl(${h},42%,68%)`,
+    belly:     `hsla(${h},22%,72%,0.5)`,
+    shimmer:   `hsla(${h},40%,72%,0.38)`,
   };
 }
 
-// ── Internal shape drawing (no translate/save — caller must set up ctx) ────
+const GRAY: DrawColors = {
+  hue: 0,
+  col:       '#6a6a6a',
+  dark:      '#434343',
+  highlight: '#a0a0a0',
+  belly:     'rgba(195,195,195,0.42)',
+  shimmer:   'rgba(185,185,185,0.32)',
+};
+
+// ── Shared helpers ─────────────────────────────────────────────────────────
+
+/** Improved eye: white sclera → coloured iris gradient → dark pupil → specular. */
+function drawEye(
+  ctx: CanvasRenderingContext2D,
+  ex: number, ey: number, r: number, hue: number,
+): void {
+  // Sclera
+  ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2);
+  ctx.fillStyle = 'white'; ctx.fill();
+  // Iris gradient
+  const ig = ctx.createRadialGradient(ex + r * 0.1, ey, 0, ex, ey, r * 0.76);
+  ig.addColorStop(0, `hsl(${hue},60%,42%)`);
+  ig.addColorStop(1, `hsl(${hue},60%,18%)`);
+  ctx.beginPath(); ctx.arc(ex + r * 0.1, ey, r * 0.64, 0, Math.PI * 2);
+  ctx.fillStyle = ig; ctx.fill();
+  // Pupil
+  ctx.beginPath(); ctx.arc(ex + r * 0.18, ey, r * 0.34, 0, Math.PI * 2);
+  ctx.fillStyle = '#111'; ctx.fill();
+  // Specular highlight
+  ctx.beginPath(); ctx.arc(ex - r * 0.05, ey - r * 0.3, r * 0.24, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.fill();
+}
+
+/** Soft colour glow behind the body — only for healthy fish (health > 55). */
+function applyGlow(
+  ctx: CanvasRenderingContext2D,
+  hue: number, health: number, radius: number,
+): void {
+  if (health > 55) {
+    const t = Math.min(1, (health - 55) / 45);
+    ctx.shadowColor = `hsla(${hue},100%,60%,${0.22 * t})`;
+    ctx.shadowBlur  = radius * 0.55 * t;
+  }
+}
+
+// ── Shape draw functions ───────────────────────────────────────────────────
+// All shapes are drawn with the ctx already translated to the fish centre.
+// +X = toward nose,  +Y = downward,  wag = vertical tail displacement.
 
 function drawBasicShape(
   ctx: CanvasRenderingContext2D, s: number, wag: number,
-  { col, dark, shimmer }: DrawColors, health?: number,
+  c: DrawColors, health?: number,
 ): void {
-  // Tail
-  ctx.beginPath(); ctx.moveTo(-s*.65,0); ctx.lineTo(-s*1.25,-s*.58+wag); ctx.lineTo(-s*1.25,s*.58+wag); ctx.closePath();
-  ctx.fillStyle=dark; ctx.fill();
-  // Body
-  ctx.beginPath(); ctx.ellipse(0,0,s,s*.52,0,0,Math.PI*2); ctx.fillStyle=col; ctx.fill();
-  // Shimmer
-  ctx.beginPath(); ctx.ellipse(s*.12,s*.12,s*.52,s*.22,-0.3,0,Math.PI*2); ctx.fillStyle=shimmer; ctx.fill();
-  // Sick tint
+  // ── Tail: smooth bezier fan ──
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.55, s * 0.06);
+  ctx.quadraticCurveTo(-s * 1.0,  -s * 0.16 + wag * 0.55, -s * 1.26, -s * 0.58 + wag);
+  ctx.quadraticCurveTo(-s * 1.42,  wag * 0.38,              -s * 1.26,  s * 0.58 + wag);
+  ctx.quadraticCurveTo(-s * 1.0,   s * 0.16 + wag * 0.55,  -s * 0.55, -s * 0.06);
+  ctx.closePath();
+  ctx.fillStyle = c.dark; ctx.fill();
+
+  // ── Body: radial gradient for 3-D roundness ──
+  if (health !== undefined) applyGlow(ctx, c.hue, health, s);
+  const bg = ctx.createRadialGradient(s * 0.18, -s * 0.20, s * 0.06, 0, 0, s * 1.08);
+  bg.addColorStop(0,    c.highlight);
+  bg.addColorStop(0.38, c.col);
+  bg.addColorStop(1,    c.dark);
+  ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.52, 0, 0, Math.PI * 2);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Body outline ──
+  ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.52, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.042; ctx.stroke();
+
+  // ── Belly highlight ──
+  ctx.beginPath(); ctx.ellipse(s * 0.12, s * 0.24, s * 0.50, s * 0.20, 0.22, 0, Math.PI * 2);
+  ctx.fillStyle = c.belly; ctx.fill();
+
+  // ── Sick tint ──
   if (health !== undefined && health < 20) {
-    ctx.beginPath(); ctx.ellipse(0,s*.05,s*.6,s*.38,0,0,Math.PI*2);
-    ctx.fillStyle=`rgba(80,200,60,${0.18+(20-health)/100})`; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, s * 0.05, s * 0.60, s * 0.38, 0, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(80,200,60,${0.18 + (20 - health) / 100})`; ctx.fill();
   }
-  // Dorsal
-  ctx.beginPath(); ctx.moveTo(-s*.05,-s*.52); ctx.quadraticCurveTo(s*.28,-s*.9,s*.62,-s*.52); ctx.fillStyle=dark; ctx.fill();
-  // Eye
-  ctx.beginPath(); ctx.arc(s*.56,-s*.07,s*.18,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill();
-  ctx.beginPath(); ctx.arc(s*.60,-s*.07,s*.10,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
-  // Expression
+
+  // ── Pectoral fin ──
+  ctx.beginPath(); ctx.ellipse(s * 0.20, s * 0.35, s * 0.22, s * 0.09, -0.55, 0, Math.PI * 2);
+  ctx.globalAlpha = 0.65; ctx.fillStyle = c.dark; ctx.fill(); ctx.globalAlpha = 1;
+
+  // ── Dorsal fin (bezier for smooth arc) ──
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.06, -s * 0.52);
+  ctx.bezierCurveTo(s * 0.12, -s * 0.98, s * 0.44, -s * 0.96, s * 0.64, -s * 0.52);
+  ctx.fillStyle = c.dark; ctx.fill();
+
+  // ── Shimmer stripe ──
+  ctx.beginPath(); ctx.ellipse(s * 0.14, -s * 0.12, s * 0.46, s * 0.17, -0.3, 0, Math.PI * 2);
+  ctx.fillStyle = c.shimmer; ctx.fill();
+
+  // ── Eye ──
+  drawEye(ctx, s * 0.58, -s * 0.07, s * 0.19, c.hue);
+
+  // ── Expression ──
   if (health !== undefined) {
-    ctx.lineWidth=1.5; ctx.strokeStyle=dark;
-    if (health < 35)      { ctx.beginPath(); ctx.arc(s*.38,s*.18,s*.13,0.15,Math.PI-0.15);      ctx.stroke(); }
-    else if (health > 68) { ctx.beginPath(); ctx.arc(s*.38,s*.04,s*.13,0.15,Math.PI-0.15,true); ctx.stroke(); }
+    ctx.lineWidth = s * 0.065; ctx.strokeStyle = c.dark; ctx.lineCap = 'round';
+    if      (health < 35) { ctx.beginPath(); ctx.arc(s*0.38, s*0.18, s*0.13, 0.15, Math.PI-0.15);       ctx.stroke(); }
+    else if (health > 68) { ctx.beginPath(); ctx.arc(s*0.38, s*0.04, s*0.13, 0.15, Math.PI-0.15, true); ctx.stroke(); }
   }
 }
 
 function drawLongShape(
   ctx: CanvasRenderingContext2D, s: number, wag: number,
-  { col, dark, shimmer }: DrawColors, health?: number,
+  c: DrawColors, health?: number,
 ): void {
-  // Forked tail
-  for (const sign of [-1, 1]) {
-    ctx.beginPath(); ctx.moveTo(-s*.8,0); ctx.lineTo(-s*1.6,sign*s*.55+wag); ctx.lineTo(-s*1.2,sign*s*.1+wag*.5); ctx.closePath();
-    ctx.fillStyle=dark; ctx.fill();
+  // ── Forked tail: two smooth bezier lobes ──
+  for (const sign of [-1, 1] as const) {
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.82, sign * s * 0.06);
+    ctx.quadraticCurveTo(-s * 1.24, sign * s * 0.20 + wag * sign * 0.5, -s * 1.62, sign * s * 0.55 + wag);
+    ctx.quadraticCurveTo(-s * 1.34, sign * s * 0.06 + wag * 0.3,         -s * 0.82, sign * s * 0.06);
+    ctx.closePath();
+    ctx.fillStyle = c.dark; ctx.fill();
   }
-  // Body + lateral stripe
-  ctx.beginPath(); ctx.ellipse(0,0,s*1.4,s*.38,0,0,Math.PI*2); ctx.fillStyle=col; ctx.fill();
-  ctx.beginPath(); ctx.ellipse(0,0,s*1.1,s*.12,0,0,Math.PI*2); ctx.fillStyle=dark; ctx.fill();
-  // Shimmer
-  ctx.beginPath(); ctx.ellipse(s*.1,s*.1,s*.9,s*.16,-0.2,0,Math.PI*2); ctx.fillStyle=shimmer; ctx.fill();
-  // Sick tint
+
+  // ── Body: elongated radial gradient ──
+  if (health !== undefined) applyGlow(ctx, c.hue, health, s);
+  const bg = ctx.createRadialGradient(s * 0.22, -s * 0.16, s * 0.05, 0, 0, s * 1.5);
+  bg.addColorStop(0,    c.highlight);
+  bg.addColorStop(0.38, c.col);
+  bg.addColorStop(1,    c.dark);
+  ctx.beginPath(); ctx.ellipse(0, 0, s * 1.4, s * 0.38, 0, 0, Math.PI * 2);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Body outline ──
+  ctx.beginPath(); ctx.ellipse(0, 0, s * 1.4, s * 0.38, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.04; ctx.stroke();
+
+  // ── Belly highlight ──
+  ctx.beginPath(); ctx.ellipse(s * 0.05, s * 0.18, s * 0.88, s * 0.15, 0.12, 0, Math.PI * 2);
+  ctx.fillStyle = c.belly; ctx.fill();
+
+  // ── Lateral stripe (dark mid-band) ──
+  ctx.beginPath(); ctx.ellipse(0, 0, s * 1.12, s * 0.11, 0, 0, Math.PI * 2);
+  ctx.fillStyle = c.dark; ctx.fill();
+
+  // ── Shimmer stripe (above the lateral stripe) ──
+  ctx.beginPath(); ctx.ellipse(s * 0.08, -s * 0.10, s * 0.92, s * 0.14, -0.18, 0, Math.PI * 2);
+  ctx.fillStyle = c.shimmer; ctx.fill();
+
+  // ── Sick tint ──
   if (health !== undefined && health < 20) {
-    ctx.beginPath(); ctx.ellipse(0,0,s*.9,s*.3,0,0,Math.PI*2);
-    ctx.fillStyle=`rgba(80,200,60,${0.18+(20-health)/100})`; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, s * 0.9, s * 0.30, 0, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(80,200,60,${0.18 + (20 - health) / 100})`; ctx.fill();
   }
-  // Dorsal
-  ctx.beginPath(); ctx.moveTo(-s*.3,-s*.38); ctx.quadraticCurveTo(s*.1,-s*.65,s*.5,-s*.38); ctx.fillStyle=dark; ctx.fill();
-  // Eye
-  ctx.beginPath(); ctx.arc(s*.78,-s*.06,s*.15,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill();
-  ctx.beginPath(); ctx.arc(s*.82,-s*.06,s*.08,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
-  // Expression
+
+  // ── Pectoral fin ──
+  ctx.beginPath(); ctx.ellipse(s * 0.30, s * 0.26, s * 0.22, s * 0.09, -0.5, 0, Math.PI * 2);
+  ctx.globalAlpha = 0.65; ctx.fillStyle = c.dark; ctx.fill(); ctx.globalAlpha = 1;
+
+  // ── Dorsal fin ──
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.30, -s * 0.38);
+  ctx.bezierCurveTo(s * 0.0, -s * 0.68, s * 0.32, -s * 0.68, s * 0.52, -s * 0.38);
+  ctx.fillStyle = c.dark; ctx.fill();
+
+  // ── Eye ──
+  drawEye(ctx, s * 0.78, -s * 0.06, s * 0.15, c.hue);
+
+  // ── Expression ──
   if (health !== undefined) {
-    ctx.lineWidth=1.5; ctx.strokeStyle=dark;
-    if (health < 35)      { ctx.beginPath(); ctx.arc(s*.62,s*.14,s*.10,0.15,Math.PI-0.15);      ctx.stroke(); }
-    else if (health > 68) { ctx.beginPath(); ctx.arc(s*.62,s*.04,s*.10,0.15,Math.PI-0.15,true); ctx.stroke(); }
+    ctx.lineWidth = s * 0.055; ctx.strokeStyle = c.dark; ctx.lineCap = 'round';
+    if      (health < 35) { ctx.beginPath(); ctx.arc(s*0.62, s*0.14, s*0.10, 0.15, Math.PI-0.15);       ctx.stroke(); }
+    else if (health > 68) { ctx.beginPath(); ctx.arc(s*0.62, s*0.04, s*0.10, 0.15, Math.PI-0.15, true); ctx.stroke(); }
   }
 }
 
 function drawRoundShape(
   ctx: CanvasRenderingContext2D, s: number, wag: number,
-  { col, dark, shimmer }: DrawColors, health?: number,
+  c: DrawColors, health?: number,
 ): void {
-  // Stubby tail
-  ctx.beginPath(); ctx.moveTo(-s*.65,0); ctx.lineTo(-s*1.05,-s*.42+wag); ctx.lineTo(-s*1.05,s*.42+wag); ctx.closePath();
-  ctx.fillStyle=dark; ctx.fill();
-  // Chubby body
-  ctx.beginPath(); ctx.ellipse(0,0,s*.95,s*.85,0,0,Math.PI*2); ctx.fillStyle=col; ctx.fill();
-  // Shimmer
-  ctx.beginPath(); ctx.ellipse(s*.1,s*.18,s*.55,s*.38,-0.3,0,Math.PI*2); ctx.fillStyle=shimmer; ctx.fill();
-  // Sick tint
+  // ── Stubby tail: smooth fan ──
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.62, s * 0.05);
+  ctx.quadraticCurveTo(-s * 0.92, -s * 0.10 + wag * 0.5, -s * 1.06, -s * 0.42 + wag);
+  ctx.quadraticCurveTo(-s * 1.20,  wag * 0.32,             -s * 1.06,  s * 0.42 + wag);
+  ctx.quadraticCurveTo(-s * 0.92,  s * 0.10 + wag * 0.5,  -s * 0.62, -s * 0.05);
+  ctx.closePath();
+  ctx.fillStyle = c.dark; ctx.fill();
+
+  // ── Body: radial gradient — nearly circular ──
+  if (health !== undefined) applyGlow(ctx, c.hue, health, s);
+  const bg = ctx.createRadialGradient(s * 0.16, -s * 0.22, s * 0.06, 0, 0, s * 1.0);
+  bg.addColorStop(0,    c.highlight);
+  bg.addColorStop(0.40, c.col);
+  bg.addColorStop(1,    c.dark);
+  ctx.beginPath(); ctx.ellipse(0, 0, s * 0.95, s * 0.85, 0, 0, Math.PI * 2);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Body outline ──
+  ctx.beginPath(); ctx.ellipse(0, 0, s * 0.95, s * 0.85, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.042; ctx.stroke();
+
+  // ── Belly highlight ──
+  ctx.beginPath(); ctx.ellipse(s * 0.10, s * 0.32, s * 0.55, s * 0.32, 0.20, 0, Math.PI * 2);
+  ctx.fillStyle = c.belly; ctx.fill();
+
+  // ── Sick tint ──
   if (health !== undefined && health < 20) {
-    ctx.beginPath(); ctx.ellipse(0,0,s*.65,s*.6,0,0,Math.PI*2);
-    ctx.fillStyle=`rgba(80,200,60,${0.18+(20-health)/100})`; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, s * 0.65, s * 0.60, 0, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(80,200,60,${0.18 + (20 - health) / 100})`; ctx.fill();
   }
-  // Spiky dorsal — 3 triangles
-  for (const sx of [-s*.25, s*.05, s*.38]) {
-    ctx.beginPath(); ctx.moveTo(sx-s*.12,-s*.85); ctx.lineTo(sx,-s*1.15); ctx.lineTo(sx+s*.12,-s*.85); ctx.closePath();
-    ctx.fillStyle=dark; ctx.fill();
+
+  // ── Pectoral fins (cute side pair) ──
+  for (const [ex, ey, ang] of [[s * 0.08, s * 0.52, -0.28], [s * 0.36, s * 0.55, 0.22]] as [number, number, number][]) {
+    ctx.beginPath(); ctx.ellipse(ex, ey, s * 0.24, s * 0.10, ang, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.62; ctx.fillStyle = c.dark; ctx.fill(); ctx.globalAlpha = 1;
   }
-  // Big eye
-  ctx.beginPath(); ctx.arc(s*.48,-s*.18,s*.24,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill();
-  ctx.beginPath(); ctx.arc(s*.52,-s*.18,s*.14,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
-  ctx.beginPath(); ctx.arc(s*.44,-s*.24,s*.07,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.65)'; ctx.fill();
-  // Expression
+
+  // ── Dorsal spines: three curved fin shapes ──
+  for (const [bx, tipX, tipY] of [
+    [-s * 0.26, -s * 0.20, -s * 1.20],
+    [ s * 0.04,  s * 0.08, -s * 1.24],
+    [ s * 0.34,  s * 0.40, -s * 1.16],
+  ] as [number, number, number][]) {
+    ctx.beginPath();
+    ctx.moveTo(bx - s * 0.10, -s * 0.84);
+    ctx.quadraticCurveTo(tipX - s * 0.04, tipY, tipX, tipY);
+    ctx.quadraticCurveTo(tipX + s * 0.04, tipY, bx + s * 0.10, -s * 0.84);
+    ctx.closePath();
+    ctx.fillStyle = c.dark; ctx.fill();
+  }
+
+  // ── Shimmer ellipse ──
+  ctx.beginPath(); ctx.ellipse(s * 0.10, -s * 0.20, s * 0.56, s * 0.34, -0.28, 0, Math.PI * 2);
+  ctx.fillStyle = c.shimmer; ctx.fill();
+
+  // ── Cheek blush ──
+  ctx.beginPath(); ctx.arc(s * 0.38, s * 0.12, s * 0.15, 0, Math.PI * 2);
+  ctx.fillStyle = `hsla(${c.hue + 30},80%,65%,0.20)`; ctx.fill();
+
+  // ── Big eye ──
+  drawEye(ctx, s * 0.48, -s * 0.18, s * 0.24, c.hue);
+
+  // ── Expression ──
   if (health !== undefined) {
-    ctx.lineWidth=1.5; ctx.strokeStyle=dark;
-    if (health < 35)      { ctx.beginPath(); ctx.arc(s*.25,s*.28,s*.13,0.15,Math.PI-0.15);      ctx.stroke(); }
-    else if (health > 68) { ctx.beginPath(); ctx.arc(s*.25,s*.18,s*.13,0.15,Math.PI-0.15,true); ctx.stroke(); }
+    ctx.lineWidth = s * 0.065; ctx.strokeStyle = c.dark; ctx.lineCap = 'round';
+    if      (health < 35) { ctx.beginPath(); ctx.arc(s*0.25, s*0.28, s*0.13, 0.15, Math.PI-0.15);       ctx.stroke(); }
+    else if (health > 68) { ctx.beginPath(); ctx.arc(s*0.25, s*0.18, s*0.13, 0.15, Math.PI-0.15, true); ctx.stroke(); }
   }
 }
 
-/** Eye centre (in unflipped screen coords relative to fish origin) for X eyes on dead fish. */
+/** Eye centre for X-eye overlay on dead fish (non-flipped screen pass). */
 function eyePos(type: FishType, s: number): { ex: number; ey: number; eyeR: number } {
-  if (type === 'long')  return { ex: s*0.78, ey: s*0.06, eyeR: s*0.08 };
-  if (type === 'round') return { ex: s*0.48, ey: s*0.18, eyeR: s*0.10 };
-  return                       { ex: s*0.56, ey: s*0.07, eyeR: s*0.10 };
+  if (type === 'long')  return { ex: s * 0.78, ey: s * 0.06, eyeR: s * 0.09 };
+  if (type === 'round') return { ex: s * 0.48, ey: s * 0.18, eyeR: s * 0.11 };
+  return                       { ex: s * 0.58, ey: s * 0.07, eyeR: s * 0.10 };
 }
 
 // ── Public drawing functions ───────────────────────────────────────────────
 
-/** Draw fry shape at (0,0) — uniform teardrop regardless of species. */
+/** Fry: uniform species-agnostic teardrop, teal, with belly glint and eye specular. */
 export function drawFry(ctx: CanvasRenderingContext2D, s: number, wag: number): void {
-  const col  = 'hsl(175,55%,48%)';
-  const dark = 'hsl(175,55%,35%)';
-  ctx.beginPath(); ctx.moveTo(-s*.6,0); ctx.lineTo(-s*.95,-s*.38+wag); ctx.lineTo(-s*.95,s*.38+wag); ctx.closePath();
-  ctx.fillStyle=dark; ctx.fill();
-  ctx.beginPath(); ctx.ellipse(0,0,s,s*.65,0,0,Math.PI*2); ctx.fillStyle=col; ctx.fill();
-  ctx.beginPath(); ctx.arc(s*.5,-s*.1,s*.12,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
+  const col   = 'hsl(175,58%,48%)';
+  const dark  = 'hsl(175,58%,30%)';
+  const belly = 'hsla(175,45%,78%,0.52)';
+
+  // Tail: smooth fan
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.58, s * 0.05);
+  ctx.quadraticCurveTo(-s * 0.88, wag * 0.5,   -s * 0.96, -s * 0.38 + wag);
+  ctx.quadraticCurveTo(-s * 1.06, wag * 0.28,  -s * 0.96,  s * 0.38 + wag);
+  ctx.quadraticCurveTo(-s * 0.88, wag * 0.5,   -s * 0.58, -s * 0.05);
+  ctx.closePath();
+  ctx.fillStyle = dark; ctx.fill();
+
+  // Body
+  ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.65, 0, 0, Math.PI * 2);
+  ctx.fillStyle = col; ctx.fill();
+
+  // Body outline
+  ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.65, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = dark; ctx.lineWidth = s * 0.04; ctx.stroke();
+
+  // Belly highlight
+  ctx.beginPath(); ctx.ellipse(s * 0.06, s * 0.26, s * 0.55, s * 0.26, 0.15, 0, Math.PI * 2);
+  ctx.fillStyle = belly; ctx.fill();
+
+  // Eye (small but has glint)
+  ctx.beginPath(); ctx.arc(s * 0.50, -s * 0.10, s * 0.14, 0, Math.PI * 2);
+  ctx.fillStyle = 'white'; ctx.fill();
+  ctx.beginPath(); ctx.arc(s * 0.52, -s * 0.10, s * 0.09, 0, Math.PI * 2);
+  ctx.fillStyle = '#111'; ctx.fill();
+  ctx.beginPath(); ctx.arc(s * 0.44, -s * 0.16, s * 0.05, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.86)'; ctx.fill();
 }
 
 /**
- * Draw a live (non-dead) fish at (0,0), already translated & scaled by caller.
+ * Draw a live (non-dead) fish at (0,0) in an already-translated+scaled context.
  * Handles fry / juvenile / adult stages with appropriate colour reveal.
  */
 export function drawLiveFish(
@@ -161,25 +358,23 @@ export function drawLiveFish(
 
 /**
  * Draw a dead fish — grayscale, upside-down, species-appropriate shape, X eyes.
- * Uses the fish's world position (x, y) and facing direction.
+ * Manages its own save/translate/scale internally (caller passes world coords).
  */
 export function drawDeadFish(
   ctx: CanvasRenderingContext2D,
   type: FishType, s: number, wag: number,
   x: number, y: number, facing: number,
 ): void {
-  const gray: DrawColors = { col: '#777', dark: '#555', shimmer: 'rgba(180,180,180,0.35)' };
-
-  // Flipped body
+  // Flipped body (upside-down, no health → no glow / no expression)
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(facing, -1);
-  if      (type === 'long')  drawLongShape (ctx, s, wag, gray);
-  else if (type === 'round') drawRoundShape(ctx, s, wag, gray);
-  else                       drawBasicShape(ctx, s, wag, gray);
+  if      (type === 'long')  drawLongShape (ctx, s, wag, GRAY);
+  else if (type === 'round') drawRoundShape(ctx, s, wag, GRAY);
+  else                       drawBasicShape(ctx, s, wag, GRAY);
   ctx.restore();
 
-  // X eyes — separate pass without y-flip
+  // X eyes — separate non-flipped pass
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(facing, 1);
@@ -188,8 +383,8 @@ export function drawDeadFish(
   ctx.lineWidth   = Math.max(1, s * 0.07);
   ctx.lineCap     = 'round';
   ctx.beginPath();
-  ctx.moveTo(ex-eyeR, ey-eyeR); ctx.lineTo(ex+eyeR, ey+eyeR);
-  ctx.moveTo(ex+eyeR, ey-eyeR); ctx.lineTo(ex-eyeR, ey+eyeR);
+  ctx.moveTo(ex - eyeR, ey - eyeR); ctx.lineTo(ex + eyeR, ey + eyeR);
+  ctx.moveTo(ex + eyeR, ey - eyeR); ctx.lineTo(ex - eyeR, ey + eyeR);
   ctx.stroke();
   ctx.restore();
 }
@@ -214,7 +409,6 @@ export function drawFishPreview(
 
   const cx = cW / 2;
   const cy = cH / 2;
-  // Scale fish size relative to canvas height
   const s  = type === 'long' ? Math.round(cH * 0.30) : Math.round(cH * 0.36);
 
   ctx.save();
@@ -222,14 +416,24 @@ export function drawFishPreview(
 
   if (stage === 'fry') {
     drawFry(ctx, Math.round(cH * 0.22), 0);
+  } else if (stage === 'dead') {
+    ctx.scale(1, -1);
+    if      (type === 'long')  drawLongShape (ctx, s, 0, GRAY);
+    else if (type === 'round') drawRoundShape(ctx, s, 0, GRAY);
+    else                       drawBasicShape(ctx, s, 0, GRAY);
+    ctx.scale(1, -1); // restore for X eyes
+    const { ex, ey, eyeR } = eyePos(type, s);
+    ctx.strokeStyle = '#333'; ctx.lineWidth = Math.max(1, s * 0.07); ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ex - eyeR, ey - eyeR); ctx.lineTo(ex + eyeR, ey + eyeR);
+    ctx.moveTo(ex + eyeR, ey - eyeR); ctx.lineTo(ex - eyeR, ey + eyeR);
+    ctx.stroke();
   } else {
-    const drawHue = stage === 'juvenile'
-      ? Math.round(175 + (hue - 175) * 0.5)
-      : hue;
-    const colors = adultColors(drawHue, 100); // always full colour for preview
-    if      (type === 'long')  drawLongShape (ctx, s, 0, colors);
-    else if (type === 'round') drawRoundShape(ctx, s, 0, colors);
-    else                       drawBasicShape(ctx, s, 0, colors);
+    const drawHue = stage === 'juvenile' ? Math.round(175 + (hue - 175) * 0.5) : hue;
+    const colors  = adultColors(drawHue, 100); // full health for preview
+    if      (type === 'long')  drawLongShape (ctx, s, 0, colors, 100);
+    else if (type === 'round') drawRoundShape(ctx, s, 0, colors, 100);
+    else                       drawBasicShape(ctx, s, 0, colors, 100);
   }
 
   ctx.restore();
