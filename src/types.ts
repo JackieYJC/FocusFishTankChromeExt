@@ -14,7 +14,9 @@ export interface FishSnapshot {
   speed:       number;
   growth:      number;
   foodGrowth:  number;
+  bornAt?:     number;   // Date.now() when fish was created
   releasedAt?: number;
+  diedAt?:     number;   // Date.now() when fish faded out (graveyard only)
 }
 
 export interface WorkHours {

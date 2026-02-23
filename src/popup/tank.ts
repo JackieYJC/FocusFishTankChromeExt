@@ -39,6 +39,7 @@ interface FishOptions {
   entering?:   boolean;
   growth?:     number;
   foodGrowth?: number;
+  bornAt?:     number;
 }
 
 export class Fish {
@@ -60,10 +61,15 @@ export class Fish {
   facing:      number;
   wanderCD:    number;
   health:      number;
+  bornAt:      number;
+  deadTimer  = 0;   // frames elapsed since death
+  deadAlpha  = 1.0; // fades to 0 after 5 s, then fish is archived
 
   constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic',
-                stage = 'fry', id, entering = false, growth = 0, foodGrowth = 0 }: FishOptions) {
+                stage = 'fry', id, entering = false, growth = 0, foodGrowth = 0,
+                bornAt }: FishOptions) {
     this.id          = id ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
+    this.bornAt      = bornAt ?? Date.now();
     this.x  = x; this.y  = y;
     this.tx = x; this.ty = y;
     this.enterFrames = entering ? 55 : 0;
@@ -101,6 +107,11 @@ export class Fish {
   update(_W: number, _H: number, tankHealth: number, pellets: FoodPellet[]): void {
     if (this.stage === 'dead') {
       this.y = Math.max(this.size + 5, this.y - 0.4);
+      this.deadTimer++;
+      // After 5 s (300 frames) start a 2 s fade
+      if (this.deadTimer > 300) {
+        this.deadAlpha = Math.max(0, 1 - (this.deadTimer - 300) / 120);
+      }
       return;
     }
 
@@ -184,7 +195,10 @@ export class Fish {
     const wag = Math.sin(phase) * s * 0.38;
 
     if (this.stage === 'dead') {
+      _ctx.save();
+      _ctx.globalAlpha = this.deadAlpha;
       drawDeadFish(_ctx, this.type, s, wag, x, y, facing);
+      _ctx.restore();
       return;
     }
 
@@ -364,10 +378,23 @@ export function saveFish(): void {
     const snapshot: FishSnapshot[] = fish.map(f => ({
       id: f.id, type: f.type, hue: f.hue, stage: f.stage,
       health: f.health, maxSize: f.maxSize, speed: f.speed,
-      growth: f.growth, foodGrowth: f.foodGrowth,
+      growth: f.growth, foodGrowth: f.foodGrowth, bornAt: f.bornAt,
     }));
     chrome.storage.local.set({ tankFish: snapshot }).catch(() => {});
   }, 250);
+}
+
+export async function archiveToGraveyard(f: Fish): Promise<void> {
+  try {
+    const { graveyardFish = [] } = await chrome.storage.local.get('graveyardFish') as { graveyardFish?: FishSnapshot[] };
+    graveyardFish.unshift({
+      id: f.id, type: f.type, hue: f.hue, stage: 'dead',
+      health: 0, maxSize: f.maxSize, speed: f.speed,
+      growth: f.growth, foodGrowth: f.foodGrowth,
+      bornAt: f.bornAt, diedAt: Date.now(),
+    });
+    await chrome.storage.local.set({ graveyardFish });
+  } catch { /* ignore */ }
 }
 
 export async function initFish(): Promise<void> {
@@ -378,7 +405,7 @@ export async function initFish(): Promise<void> {
         const m = Math.round(f.maxSize * 0.38) * 2;
         const x = m + Math.random() * (W - m * 2);
         const y = m + Math.random() * (H - m * 2 - 25);
-        const nf = new Fish({ id: f.id, x, y, size: f.maxSize, speed: f.speed, hue: f.hue, type: f.type, stage: f.stage, growth: f.growth ?? 0, foodGrowth: f.foodGrowth ?? 0 });
+        const nf = new Fish({ id: f.id, x, y, size: f.maxSize, speed: f.speed, hue: f.hue, type: f.type, stage: f.stage, growth: f.growth ?? 0, foodGrowth: f.foodGrowth ?? 0, bornAt: f.bornAt });
         nf.health = f.health;
         fish.push(nf);
       }
@@ -544,6 +571,15 @@ export function render(): void {
 
   fish.sort((a, b) => a.size - b.size);
   fish.forEach(f => { f.update(W, H, gameState.tankHealth, foodPellets); f.draw(ctx, f.health); });
+
+  // Archive fully faded dead fish to graveyard
+  for (let i = fish.length - 1; i >= 0; i--) {
+    if (fish[i].stage === 'dead' && fish[i].deadAlpha <= 0) {
+      archiveToGraveyard(fish[i]);
+      fish.splice(i, 1);
+      saveFish();
+    }
+  }
 
   if (gameState.debugMode) {
     // Growth bars for fry and juvenile

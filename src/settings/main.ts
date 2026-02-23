@@ -13,8 +13,9 @@ document.querySelectorAll<HTMLElement>('.nav-btn').forEach(btn => {
     document.querySelectorAll<HTMLElement>('.settings-main > section').forEach(s => (s.hidden = true));
     const page = btn.dataset['page'] ?? '';
     document.getElementById(`page-${page}`)!.hidden = false;
-    if (page === 'fish')     loadFishPage();
-    if (page === 'released') loadReleasedPage();
+    if (page === 'fish')      loadFishPage();
+    if (page === 'released')  loadReleasedPage();
+    if (page === 'graveyard') loadGraveyardPage();
   });
 });
 
@@ -185,6 +186,37 @@ function renderReleasedList(arr: FishSnapshot[]): void {
       <div class="fish-name">${typeLabel}</div>
       <div class="fish-stage">${f.stage}</div>
       <div class="released-date">Released ${dateStr}</div>
+    `;
+    card.appendChild(meta);
+    container.appendChild(card);
+  }
+}
+
+// ─── Graveyard page ───────────────────────────────────────────────────────────
+
+async function loadGraveyardPage(): Promise<void> {
+  const { graveyardFish = [] } = await chrome.storage.local.get('graveyardFish') as { graveyardFish?: FishSnapshot[] };
+  const container = document.getElementById('graveyard-list')!;
+  container.innerHTML = '';
+  if (!graveyardFish.length) { container.innerHTML = '<p class="muted-text">No fish have died yet.</p>'; return; }
+  for (const f of graveyardFish) {
+    const card = document.createElement('div');
+    card.className = 'graveyard-card';
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'fish-mini-preview';
+    canvas.width = 70; canvas.height = 50;
+    card.appendChild(canvas);
+    drawFishPreview(canvas, f.type, f.hue, 'dead');
+
+    const meta = document.createElement('div');
+    meta.className = 'fish-meta';
+    const typeLabel = ({ basic: 'Oval', long: 'Tetra', round: 'Puffer' } as Record<string, string>)[f.type] ?? f.type;
+    const diedStr   = f.diedAt  ? new Date(f.diedAt).toLocaleDateString()  : 'Unknown date';
+    const ageMin    = (f.bornAt && f.diedAt) ? Math.floor((f.diedAt - f.bornAt) / 60000) : null;
+    meta.innerHTML  = `
+      <div class="fish-name">${typeLabel}</div>
+      <div class="died-date">Died ${diedStr}${ageMin !== null ? ` · lived ${ageMin}m` : ''}</div>
     `;
     card.appendChild(meta);
     container.appendChild(card);
