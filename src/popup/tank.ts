@@ -410,9 +410,9 @@ export async function initFish(): Promise<void> {
         fish.push(nf);
       }
     } else {
-      fish.push(new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }));
-      fish.push(new Fish({ x:  80, y: 160, size: 22, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }));
-      fish.push(new Fish({ x: 280, y: 130, size: 21, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }));
+      fish.push(new Fish({ x: 180, y: 100, size: 36, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }));
+      fish.push(new Fish({ x:  80, y: 160, size: 33, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }));
+      fish.push(new Fish({ x: 280, y: 130, size: 32, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }));
       saveFish();
     }
   } catch {
@@ -428,7 +428,7 @@ export function spawnRewardFish(): void {
   const types: FishType[] = ['basic', 'long', 'round'];
   const type = types[Math.floor(Math.random() * types.length)];
   const hue  = Math.floor(Math.random() * 360);
-  const maxS = 11 + Math.floor(Math.random() * 5);
+  const maxS = 17 + Math.floor(Math.random() * 6);
   const frySize = Math.round(maxS * 0.38);
   const m = frySize * 2;
   fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
@@ -436,7 +436,7 @@ export function spawnRewardFish(): void {
 }
 
 export function spawnDropFish(type: FishType, hue: number): void {
-  const maxS = 11 + Math.floor(Math.random() * 5);
+  const maxS = 17 + Math.floor(Math.random() * 6);
   fish.push(new Fish({ x: 40 + Math.random() * (W - 80), y: -maxS, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry', entering: true }));
   saveFish();
 }
@@ -445,7 +445,7 @@ export async function checkPendingFish(showBurst: (msg: string) => void): Promis
   const { pendingFish = [] } = await chrome.storage.local.get('pendingFish') as { pendingFish?: Array<{ type: FishType; hue: number }> };
   if (pendingFish.length === 0) return;
   for (const { type, hue } of pendingFish) {
-    const maxS = 11 + Math.floor(Math.random() * 5);
+    const maxS = 17 + Math.floor(Math.random() * 6);
     const frySize = Math.round(maxS * 0.38);
     const m = frySize * 2;
     fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));

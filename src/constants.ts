@@ -35,7 +35,7 @@ export const STAGE_SIZE_FACTORS: Record<string, number> = {
 };
 
 export const DEFAULT_FISH_SIZES: Record<FishType, number> = {
-  basic: 24, long: 22, round: 21,
+  basic: 36, long: 33, round: 32,
 };
 
 export interface ShopItem {
