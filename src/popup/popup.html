@@ -88,45 +88,17 @@
       <button id="reset-btn">Reset Session</button>
     </div>
 
+    <!-- Shop pane — grid is built dynamically from SHOP_ITEMS in shop-pane.ts -->
     <div id="shop-pane" hidden>
       <div id="shop-pane-head">
         <span class="coin-icon">🪙</span>
         <span id="shop-pane-coins">0</span>
         <span class="coin-label">coins available</span>
       </div>
-      <div id="shop-pane-grid">
-
-        <div class="spc" data-type="basic">
-          <canvas class="spc-canvas" width="88" height="58"></canvas>
-          <div class="spc-info">
-            <span class="spc-name">Classic</span>
-            <span class="spc-desc">A cheerful, dependable companion</span>
-          </div>
-          <button class="spc-btn" data-type="basic" data-cost="30">🪙 30</button>
-        </div>
-
-        <div class="spc" data-type="long">
-          <canvas class="spc-canvas" width="88" height="58"></canvas>
-          <div class="spc-info">
-            <span class="spc-name">Tetra</span>
-            <span class="spc-desc">Sleek, fast, forked tail</span>
-          </div>
-          <button class="spc-btn" data-type="long" data-cost="60">🪙 60</button>
-        </div>
-
-        <div class="spc" data-type="round">
-          <canvas class="spc-canvas" width="88" height="58"></canvas>
-          <div class="spc-info">
-            <span class="spc-name">Puffer</span>
-            <span class="spc-desc">Chubby, spiky, big personality</span>
-          </div>
-          <button class="spc-btn" data-type="round" data-cost="100">🪙 100</button>
-        </div>
-
-      </div>
+      <div id="shop-pane-grid"></div>
       <p class="spc-hint">Fish arrive as a fry — colour and shape reveal as they grow.</p>
     </div>
   </div>
-  <script src="popup.js"></script>
+  <script type="module" src="./main.ts"></script>
 </body>
 </html>

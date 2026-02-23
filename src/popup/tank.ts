@@ -1,0 +1,459 @@
+// ─── Tank — Fish class, scene objects, render loop ────────────────────────────
+
+import { drawFry, drawLiveFish, drawDeadFish } from '../fish-renderer';
+import { GAME_BALANCE, STAGE_SIZE_FACTORS }    from '../constants';
+import type { FishType, FishStage, FishSnapshot } from '../types';
+
+const { BASE_GROWTH_RATE, FOOD_GROWTH_CAP, FOOD_GROWTH_BONUS } = GAME_BALANCE;
+
+// ─── Shared mutable runtime state ─────────────────────────────────────────────
+// Exported as a plain object so any module can read/write without circular deps.
+
+export const gameState = {
+  tankHealth:      70,
+  health:          70,     // mirrors focusScore; used for fish growth tick
+  debugMode:       false,
+  hpReact:         0.002,  // exponential HP chase coefficient per frame
+  coinAccrualMult: 1,      // debug multiplier
+  growthSpeed:     1,      // debug multiplier
+  lastCoins:       null as number | null,
+};
+
+// ─── Canvas setup ─────────────────────────────────────────────────────────────
+
+export const W = 360, H = 260;
+export const canvas = document.getElementById('tank') as HTMLCanvasElement;
+export const ctx    = canvas.getContext('2d')!;
+
+// ─── Scene arrays ─────────────────────────────────────────────────────────────
+
+export const fish:        Fish[]       = [];
+export const foodPellets: FoodPellet[] = [];
+export const ripples:     Ripple[]     = [];
+export const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
+export const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
+
+// ─── Fish ─────────────────────────────────────────────────────────────────────
+
+interface FishOptions {
+  x: number; y: number;
+  size?:       number;
+  speed?:      number;
+  hue?:        number;
+  type?:       FishType;
+  stage?:      FishStage;
+  id?:         string;
+  entering?:   boolean;
+  growth?:     number;
+  foodGrowth?: number;
+}
+
+export class Fish {
+  id:          string;
+  x:           number;
+  y:           number;
+  tx:          number;
+  ty:          number;
+  enterFrames: number;
+  growth:      number;
+  foodGrowth:  number;
+  maxSize:     number;
+  size:        number;
+  type:        FishType;
+  stage:       FishStage;
+  speed:       number;
+  hue:         number;
+  phase:       number;
+  facing:      number;
+  wanderCD:    number;
+  health:      number;
+
+  constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic',
+                stage = 'fry', id, entering = false, growth = 0, foodGrowth = 0 }: FishOptions) {
+    this.id          = id ?? (Date.now().toString(36) + Math.random().toString(36).slice(2));
+    this.x  = x; this.y  = y;
+    this.tx = x; this.ty = y;
+    this.enterFrames = entering ? 55 : 0;
+    this.growth      = growth;
+    this.foodGrowth  = foodGrowth;
+    this.maxSize     = size;
+    this.type        = type;
+    this.stage       = stage;
+    this.speed       = speed;
+    this.hue         = hue;
+    this.phase       = Math.random() * Math.PI * 2;
+    this.facing      = 1;
+    this.wanderCD    = 0;
+    this.health      = 100;
+    this.size        = 0;
+    this._applyStageSize();
+  }
+
+  _applyStageSize(): void {
+    this.size = Math.round(this.maxSize * (STAGE_SIZE_FACTORS[this.stage] ?? 1.0));
+  }
+
+  cycleStage(): void {
+    const order: FishStage[] = ['fry', 'juvenile', 'adult', 'dead'];
+    this.stage = order[(order.indexOf(this.stage) + 1) % order.length];
+    this._applyStageSize();
+    this.wanderCD = 0;
+    saveFish();
+  }
+
+  hitTest(px: number, py: number, minRadius = 0): boolean {
+    return Math.hypot(px - this.x, py - this.y) < Math.max(this.size * 1.8, minRadius);
+  }
+
+  update(_W: number, _H: number, tankHealth: number, pellets: FoodPellet[]): void {
+    if (this.stage === 'dead') {
+      this.y = Math.max(this.size + 5, this.y - 0.4);
+      return;
+    }
+
+    // Drop-in animation
+    if (this.enterFrames > 0) {
+      this.enterFrames--;
+      this.y += 2.5;
+      this.phase += 0.06;
+      if (this.enterFrames === 0) { this.tx = this.x; this.ty = this.y; this.wanderCD = 0; }
+      return;
+    }
+
+    // Health chase
+    const delta = (tankHealth - this.health) * gameState.hpReact;
+    this.health = Math.max(0, Math.min(100, this.health + delta));
+    if (this.health < 1) {
+      this.stage = 'dead';
+      this._applyStageSize();
+      saveFish();
+      return;
+    }
+
+    this.phase += 0.05 + (this.health / 100) * 0.06;
+    const speedMult = this.stage === 'fry' ? 1.25 : 1.0;
+    const spd       = (0.4 + (this.health / 100) * this.speed) * speedMult;
+
+    // Food seeking
+    const DETECT = 150, EAT = 14;
+    let nearest: FoodPellet | null = null, nearestD = Infinity;
+    for (const p of pellets) {
+      if (!p.active) continue;
+      const d = Math.hypot(p.x - this.x, p.y - this.y);
+      if (d < DETECT && d < nearestD) { nearest = p; nearestD = d; }
+    }
+
+    if (nearest) {
+      this.tx = nearest.x; this.ty = nearest.y; this.wanderCD = 30;
+      if (nearestD < EAT) {
+        nearest.eat();
+        if ((this.stage === 'fry' || this.stage === 'juvenile') && this.foodGrowth < FOOD_GROWTH_CAP) {
+          const bonus = Math.min(FOOD_GROWTH_BONUS, FOOD_GROWTH_CAP - this.foodGrowth);
+          this.foodGrowth += bonus;
+          this.growth = Math.min(100, this.growth + bonus);
+        }
+      }
+    } else {
+      if (--this.wanderCD <= 0) {
+        const m = this.size * 2;
+        this.tx = m + Math.random() * (_W - m * 2);
+        this.ty = m + Math.random() * (_H - m * 2 - 25);
+        this.wanderCD = 80 + Math.random() * 120;
+      }
+    }
+
+    const dx = this.tx - this.x, dy = this.ty - this.y;
+    const d  = Math.hypot(dx, dy);
+    if (d > 2) {
+      const boost = nearest ? 1.6 : 1;
+      this.x += (dx / d) * spd * boost;
+      this.y += (dy / d) * spd * boost;
+      this.facing = dx > 0 ? 1 : -1;
+    }
+    this.y += Math.sin(this.phase * 0.7) * 0.25;
+
+    // Time-based growth
+    if (this.stage === 'fry' || this.stage === 'juvenile') {
+      this.growth += (gameState.health / 100) * BASE_GROWTH_RATE * gameState.growthSpeed;
+      if (this.growth >= 100) {
+        this.stage      = this.stage === 'fry' ? 'juvenile' : 'adult';
+        this.growth     = 0;
+        this.foodGrowth = 0;
+        this._applyStageSize();
+        saveFish();
+      }
+    }
+  }
+
+  draw(_ctx: CanvasRenderingContext2D, health: number): void {
+    const { x, y, size: s, phase, facing } = this;
+    const wag = Math.sin(phase) * s * 0.38;
+
+    if (this.stage === 'dead') {
+      drawDeadFish(_ctx, this.type, s, wag, x, y, facing);
+      return;
+    }
+
+    _ctx.save();
+    _ctx.translate(x, y);
+    _ctx.scale(facing, 1);
+    drawLiveFish(_ctx, this.type, this.stage, this.hue, s, wag, health);
+    _ctx.restore();
+  }
+}
+
+// ─── Bubble ───────────────────────────────────────────────────────────────────
+
+class Bubble {
+  x: number; y: number; r: number; vy: number; wobble: number;
+  constructor(private W: number, private H: number) { this.x=0; this.y=0; this.r=0; this.vy=0; this.wobble=0; this.reset(true); }
+  reset(initial = false): void {
+    this.x      = 20 + Math.random() * (this.W - 40);
+    this.y      = initial ? Math.random() * this.H : this.H + 5;
+    this.r      = 1.5 + Math.random() * 3.5;
+    this.vy     = 0.25 + Math.random() * 0.45;
+    this.wobble = Math.random() * Math.PI * 2;
+  }
+  update(): void { this.y -= this.vy; this.wobble += 0.04; this.x += Math.sin(this.wobble) * 0.35; if (this.y < -10) this.reset(); }
+  draw(c: CanvasRenderingContext2D): void {
+    c.beginPath(); c.arc(this.x, this.y, this.r, 0, Math.PI*2);
+    c.strokeStyle='rgba(160,210,255,0.4)'; c.lineWidth=0.8; c.stroke();
+    c.beginPath(); c.arc(this.x - this.r*.3, this.y - this.r*.3, this.r*.3, 0, Math.PI*2);
+    c.fillStyle='rgba(255,255,255,0.35)'; c.fill();
+  }
+}
+
+// ─── Seaweed ──────────────────────────────────────────────────────────────────
+
+class Seaweed {
+  baseY:  number;
+  joints: number;
+  phase:  number;
+  segH:   number;
+  constructor(public x: number, H: number) {
+    this.baseY  = H - 18;
+    this.joints = 5 + Math.floor(Math.random() * 4);
+    this.phase  = Math.random() * Math.PI * 2;
+    this.segH   = 13 + Math.random() * 4;
+  }
+  update(): void { this.phase += 0.018; }
+  draw(c: CanvasRenderingContext2D, health: number): void {
+    const hue = 110 + (1 - health / 100) * -70;
+    c.strokeStyle=`hsl(${hue},55%,32%)`; c.lineWidth=3; c.lineCap='round'; c.lineJoin='round';
+    c.beginPath(); c.moveTo(this.x, this.baseY);
+    for (let i = 0; i < this.joints; i++) {
+      const sway = Math.sin(this.phase + i * 0.6) * (3 + i * 1.2);
+      c.lineTo(this.x + sway, this.baseY - (i + 1) * this.segH);
+    }
+    c.stroke();
+  }
+}
+
+// ─── Food Pellet ──────────────────────────────────────────────────────────────
+
+export class FoodPellet {
+  x: number; y: number; r: number; vy: number; vx: number;
+  alpha: number; ttl: number;
+  private _eaten = false;
+  constructor(x: number, y: number, private H: number) {
+    this.x = x + (Math.random() - 0.5) * 22;
+    this.y = y + (Math.random() - 0.5) * 10;
+    this.r  = 2 + Math.random() * 1.5;
+    this.vy = 0.35 + Math.random() * 0.35;
+    this.vx = (Math.random() - 0.5) * 0.4;
+    this.alpha = 1; this.ttl = 700;
+  }
+  eat(): void { this._eaten = true; }
+  update(): void {
+    if (this._eaten) { this.alpha -= 0.07; return; }
+    if (--this.ttl <= 0) { this._eaten = true; return; }
+    this.y += this.vy; this.x += this.vx;
+    if (this.y > this.H - 22) { this.y = this.H - 22; this.vy = 0; this.vx = 0; }
+  }
+  draw(c: CanvasRenderingContext2D): void {
+    if (this.alpha <= 0) return;
+    c.save(); c.globalAlpha = this.alpha;
+    c.beginPath(); c.arc(this.x, this.y, this.r, 0, Math.PI*2); c.fillStyle='#d48c2a'; c.fill();
+    c.beginPath(); c.arc(this.x-this.r*.35, this.y-this.r*.35, this.r*.38, 0, Math.PI*2); c.fillStyle='rgba(255,220,140,0.75)'; c.fill();
+    c.restore();
+  }
+  get active(): boolean { return this.alpha > 0 && !this._eaten; }
+  get alive():  boolean { return this.alpha > 0; }
+}
+
+// ─── Ripple ───────────────────────────────────────────────────────────────────
+
+export class Ripple {
+  r = 4; alpha = 0.65;
+  constructor(public x: number, public y: number) {}
+  update(): void { this.r += 1.8; this.alpha -= 0.045; }
+  draw(c: CanvasRenderingContext2D): void {
+    if (this.alpha <= 0) return;
+    c.beginPath(); c.arc(this.x, this.y, this.r, 0, Math.PI*2);
+    c.strokeStyle=`rgba(255,210,100,${this.alpha})`; c.lineWidth=1.5; c.stroke();
+  }
+  get alive(): boolean { return this.alpha > 0; }
+}
+
+// ─── Fish persistence ─────────────────────────────────────────────────────────
+
+let saveFishTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function saveFish(): void {
+  if (saveFishTimer) clearTimeout(saveFishTimer);
+  saveFishTimer = setTimeout(() => {
+    const snapshot: FishSnapshot[] = fish.map(f => ({
+      id: f.id, type: f.type, hue: f.hue, stage: f.stage,
+      health: f.health, maxSize: f.maxSize, speed: f.speed,
+      growth: f.growth, foodGrowth: f.foodGrowth,
+    }));
+    chrome.storage.local.set({ tankFish: snapshot }).catch(() => {});
+  }, 250);
+}
+
+export async function initFish(): Promise<void> {
+  try {
+    const { tankFish } = await chrome.storage.local.get('tankFish') as { tankFish?: FishSnapshot[] };
+    if (tankFish && tankFish.length > 0) {
+      for (const f of tankFish) {
+        const m = Math.round(f.maxSize * 0.38) * 2;
+        const x = m + Math.random() * (W - m * 2);
+        const y = m + Math.random() * (H - m * 2 - 25);
+        const nf = new Fish({ id: f.id, x, y, size: f.maxSize, speed: f.speed, hue: f.hue, type: f.type, stage: f.stage, growth: f.growth ?? 0, foodGrowth: f.foodGrowth ?? 0 });
+        nf.health = f.health;
+        fish.push(nf);
+      }
+    } else {
+      fish.push(new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }));
+      fish.push(new Fish({ x:  80, y: 160, size: 22, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }));
+      fish.push(new Fish({ x: 280, y: 130, size: 21, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }));
+      saveFish();
+    }
+  } catch {
+    fish.push(new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }));
+    fish.push(new Fish({ x:  80, y: 160, size: 22, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }));
+    fish.push(new Fish({ x: 280, y: 130, size: 21, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }));
+  }
+}
+
+// ─── Fish spawning ────────────────────────────────────────────────────────────
+
+export function spawnRewardFish(): void {
+  const types: FishType[] = ['basic', 'long', 'round'];
+  const type = types[Math.floor(Math.random() * types.length)];
+  const hue  = Math.floor(Math.random() * 360);
+  const maxS = 11 + Math.floor(Math.random() * 5);
+  const frySize = Math.round(maxS * 0.38);
+  const m = frySize * 2;
+  fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
+  saveFish();
+}
+
+export function spawnDropFish(type: FishType, hue: number): void {
+  const maxS = 11 + Math.floor(Math.random() * 5);
+  fish.push(new Fish({ x: 40 + Math.random() * (W - 80), y: -maxS, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry', entering: true }));
+  saveFish();
+}
+
+export async function checkPendingFish(showBurst: (msg: string) => void): Promise<void> {
+  const { pendingFish = [] } = await chrome.storage.local.get('pendingFish') as { pendingFish?: Array<{ type: FishType; hue: number }> };
+  if (pendingFish.length === 0) return;
+  for (const { type, hue } of pendingFish) {
+    const maxS = 11 + Math.floor(Math.random() * 5);
+    const frySize = Math.round(maxS * 0.38);
+    const m = frySize * 2;
+    fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
+  }
+  saveFish();
+  await chrome.storage.local.set({ pendingFish: [] });
+  showBurst('🐟 New fish arrived! Check your tank.');
+}
+
+// ─── Rendering ────────────────────────────────────────────────────────────────
+
+function drawWater(): void {
+  const dark = (1 - gameState.tankHealth / 100) * 0.55;
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, `hsl(210,${68 - dark*30}%,${20 - dark*12}%)`);
+  grad.addColorStop(1, `hsl(220,${75 - dark*30}%,${12 - dark*8}%)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  if (gameState.tankHealth > 45) {
+    ctx.save();
+    ctx.globalAlpha = ((gameState.tankHealth - 45) / 55) * 0.07;
+    for (let i = 0; i < 5; i++) {
+      const rx = 50 + i * 65;
+      ctx.beginPath(); ctx.moveTo(rx-12,0); ctx.lineTo(rx+12,0); ctx.lineTo(rx+45,H-20); ctx.lineTo(rx+22,H-20);
+      ctx.fillStyle='rgba(180,220,255,1)'; ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  const sand = ctx.createLinearGradient(0, H-20, 0, H);
+  sand.addColorStop(0, '#c9aa58'); sand.addColorStop(1, '#a07c30');
+  ctx.fillStyle = sand; ctx.fillRect(0, H-20, W, 20);
+
+  if (gameState.tankHealth < 40) {
+    ctx.fillStyle = `rgba(60,15,0,${(40 - gameState.tankHealth) / 130})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+export function render(): void {
+  ctx.clearRect(0, 0, W, H);
+  drawWater();
+  seaweeds.forEach(s => { s.update(); s.draw(ctx, gameState.tankHealth); });
+  bubbles.forEach(b  => { b.update(); b.draw(ctx); });
+
+  for (const p of foodPellets) { p.update(); p.draw(ctx); }
+  for (const r of ripples)     { r.update(); r.draw(ctx); }
+
+  const prune = <T extends { alive: boolean }>(arr: T[]) => {
+    for (let i = arr.length - 1; i >= 0; i--) if (!arr[i].alive) arr.splice(i, 1);
+  };
+  prune(foodPellets);
+  prune(ripples);
+
+  fish.sort((a, b) => a.size - b.size);
+  fish.forEach(f => { f.update(W, H, gameState.tankHealth, foodPellets); f.draw(ctx, f.health); });
+
+  // Always-visible growth bars for fry and juvenile
+  for (const f of fish) {
+    if (f.stage === 'adult' || f.stage === 'dead' || f.enterFrames > 0) continue;
+    const barW = Math.max(f.size * 2.5, 18);
+    const bx   = f.x - barW / 2;
+    const by   = f.y + f.size + 4;
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(bx, by, barW, 4);
+    ctx.fillStyle = f.stage === 'fry' ? '#44cc88' : '#6699ff';
+    ctx.fillRect(bx, by, barW * (f.growth / 100), 4);
+  }
+
+  if (gameState.debugMode) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 9px monospace';
+    for (const f of fish) {
+      const barW = f.size * 2.2, barH = 4;
+      const bx   = f.x - barW / 2;
+      const by   = f.y - f.size - 14;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(bx, by, barW, barH);
+      const hpPct = f.stage === 'dead' ? 0 : f.health / 100;
+      ctx.fillStyle = `hsl(${hpPct * 120},90%,50%)`; ctx.fillRect(bx, by, barW * hpPct, barH);
+      if (f.stage === 'fry' || f.stage === 'juvenile') {
+        const gy = by + barH + 2;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(bx, gy, barW, barH);
+        ctx.fillStyle = f.stage === 'fry' ? '#44cc88' : '#6699ff';
+        ctx.fillRect(bx, gy, barW * (f.growth / 100), barH);
+      }
+      ctx.fillStyle = f.stage === 'dead' ? '#f55' : '#ff0';
+      ctx.fillText(f.stage, f.x, by - 2);
+    }
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('DEBUG', 6, 14);
+  }
+
+  requestAnimationFrame(render);
+}

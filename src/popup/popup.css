@@ -1,5 +1,23 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* ── Design tokens ────────────────────────────────────────────────────────── */
+:root {
+  --bg-deep:    #08121e;
+  --bg-panel:   #0c1b30;
+  --bg-inset:   #0a1525;
+  --border:     #1a3050;
+  --text:       #d0dff5;
+  --text-muted: #5a7aaa;
+  --accent:     #4a9aff;
+  --gold:       #f5c842;
+  --green:      #4caf50;
+  --red:        #f44336;
+  --orange:     #ffaa44;
+  --pomo-red:   #cc4444;
+  --radius-sm:  6px;
+  --radius-md:  8px;
+}
+
 body {
   width: 360px;
   background: #08121e;
