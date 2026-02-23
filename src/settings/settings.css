@@ -217,6 +217,19 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
 .died-date  { font-size: 11px; color: #7a5a7a; margin-top: 2px; }
 .fish-age   { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
+/* ── Danger Zone ──────────────────────────────────────────────────────────── */
+.danger-card { border-color: rgba(220,60,60,0.3); }
+.danger-card h2 { color: var(--danger); }
+
+#reset-tank-btn {
+  padding: 10px 24px;
+  background: rgba(200,40,40,0.12); color: #e05050;
+  border: 1px solid rgba(200,40,40,0.4); border-radius: 8px;
+  cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: background 0.2s;
+}
+#reset-tank-btn:hover { background: rgba(200,40,40,0.28); }
+
 /* ── Saved toast ──────────────────────────────────────────────────────────── */
 #toast {
   position: fixed; bottom: 24px; right: 24px;

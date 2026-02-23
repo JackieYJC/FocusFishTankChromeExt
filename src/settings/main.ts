@@ -237,6 +237,20 @@ function toast(msg = 'Saved ✓'): void {
   toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
 }
 
+// ─── Reset tank ───────────────────────────────────────────────────────────────
+
+document.getElementById('reset-tank-btn')!.addEventListener('click', async () => {
+  const confirmed = confirm(
+    'Reset Tank — this will permanently delete all your fish, coins, and session stats.\n\nAre you sure?'
+  );
+  if (!confirmed) return;
+  await chrome.storage.local.set({
+    tankFish: [], releasedFish: [], graveyardFish: [], pendingFish: [],
+    coins: 0, focusScore: 70, totalFocusMinutes: 0, totalDistractedMinutes: 0,
+  });
+  toast('Tank reset. Everything cleared.');
+});
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 document.body.insertAdjacentHTML('beforeend', '<div id="toast"></div>');
