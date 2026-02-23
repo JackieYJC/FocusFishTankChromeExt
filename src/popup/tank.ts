@@ -6,6 +6,11 @@ import type { FishType, FishStage, FishSnapshot } from '../types';
 
 const { BASE_GROWTH_RATE, FOOD_GROWTH_CAP, FOOD_GROWTH_BONUS } = GAME_BALANCE;
 
+// Per-species swim speed multipliers (long = sleek & fast, round = chubby & slow)
+const SPECIES_SPEED: Record<string, number> = { basic: 1.0, long: 1.4, round: 0.65 };
+// Per-stage swim speed multipliers (fry dart, juveniles hustle, adults cruise)
+const STAGE_SPEED:   Record<string, number> = { fry: 1.25, juvenile: 1.1, adult: 1.0, dead: 1.0 };
+
 // ─── Shared mutable runtime state ─────────────────────────────────────────────
 // Exported as a plain object so any module can read/write without circular deps.
 
@@ -134,10 +139,10 @@ export class Fish {
       return;
     }
 
-    // Slower tail wag so healthy fish look graceful, not frantic
-    this.phase += 0.038 + (this.health / 100) * 0.022;
-    const speedMult = this.stage === 'fry' ? 1.1 : 1.0;
-    const spd       = (0.5 + (this.health / 100) * this.speed * 0.65) * speedMult;
+    // Tail wag rate and swim speed both scale with species + stage
+    const swimMult  = SPECIES_SPEED[this.type] * STAGE_SPEED[this.stage];
+    this.phase += (0.038 + (this.health / 100) * 0.022) * swimMult;
+    const spd       = (0.5 + (this.health / 100) * this.speed * 0.65) * swimMult;
 
     // Food seeking
     const DETECT = 150, EAT = 14;
