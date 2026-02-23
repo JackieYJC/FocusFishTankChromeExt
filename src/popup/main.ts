@@ -54,11 +54,6 @@ document.getElementById('settings-btn')!.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
-document.getElementById('reset-btn')!.addEventListener('click', async () => {
-  await chrome.storage.local.set({ focusScore: 70, totalFocusMinutes: 0, totalDistractedMinutes: 0 });
-  poll();
-});
-
 // ─── Daily coin claim ─────────────────────────────────────────────────────────
 
 const DAILY_REWARD    = 50;

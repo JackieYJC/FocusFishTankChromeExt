@@ -312,11 +312,3 @@ body {
 #daily-btn:hover:not(:disabled) { background: #2e1e00; }
 #daily-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-#reset-btn {
-  padding: 8px; width: 100%;
-  background: #152240; color: #6a9ac8;
-  border: 1px solid #243a60; border-radius: 8px;
-  cursor: pointer; font-size: 13px; letter-spacing: 0.3px;
-  transition: background 0.2s;
-}
-#reset-btn:hover { background: #1e3258; color: #8ab5dc; }
