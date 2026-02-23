@@ -126,9 +126,11 @@ function buildFishCard(f: FishSnapshot): HTMLElement {
   const typeLabel = ({ basic: 'Oval', long: 'Tetra', round: 'Puffer' } as Record<string, string>)[f.type] ?? f.type;
   const hpPct     = f.stage === 'dead' ? 0 : Math.round(f.health);
   const hpColor   = f.stage === 'dead' ? '#555' : `hsl(${hpPct * 1.2},80%,45%)`;
+  const ageMin    = f.bornAt ? Math.floor((Date.now() - f.bornAt) / 60000) : null;
+  const ageStr    = ageMin !== null ? (ageMin < 60 ? `${ageMin}m old` : `${Math.floor(ageMin/60)}h ${ageMin%60}m old`) : '';
   meta.innerHTML  = `
     <div class="fish-name">${typeLabel}</div>
-    <div class="fish-stage">${f.stage}${f.stage === 'dead' ? ' ☠' : ''}</div>
+    <div class="fish-stage">${f.stage}${f.stage === 'dead' ? ' ☠' : ''}${ageStr ? ` · ${ageStr}` : ''}</div>
     <div class="fish-hp-bar"><div class="fish-hp-fill" style="width:${hpPct}%;background:${hpColor};"></div></div>
   `;
   card.appendChild(meta);
