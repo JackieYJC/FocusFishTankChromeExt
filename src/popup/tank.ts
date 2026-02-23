@@ -166,7 +166,7 @@ export class Fish {
 
     // Time-based growth
     if (this.stage === 'fry' || this.stage === 'juvenile') {
-      this.growth += (gameState.health / 100) * BASE_GROWTH_RATE * gameState.growthSpeed;
+      this.growth += (gameState.tankHealth / 100) * BASE_GROWTH_RATE * gameState.growthSpeed;
       if (this.growth >= 100) {
         this.stage      = this.stage === 'fry' ? 'juvenile' : 'adult';
         this.growth     = 0;
