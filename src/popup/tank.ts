@@ -410,15 +410,22 @@ export async function initFish(): Promise<void> {
         fish.push(nf);
       }
     } else {
-      fish.push(new Fish({ x: 180, y: 100, size: 36, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }));
-      fish.push(new Fish({ x:  80, y: 160, size: 33, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }));
-      fish.push(new Fish({ x: 280, y: 130, size: 32, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }));
+      const types: FishType[] = ['basic', 'long', 'round'];
+      for (let i = 0; i < 2; i++) {
+        const type = types[Math.floor(Math.random() * types.length)];
+        const maxS = 17 + Math.floor(Math.random() * 6);
+        const m    = Math.round(maxS * 0.38) * 2;
+        fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: Math.floor(Math.random() * 360), type, stage: 'fry' }));
+      }
       saveFish();
     }
   } catch {
-    fish.push(new Fish({ x: 180, y: 100, size: 24, speed: 1.2, hue: 155, type: 'basic', stage: 'adult' }));
-    fish.push(new Fish({ x:  80, y: 160, size: 22, speed: 0.9, hue:  20, type: 'long',  stage: 'adult' }));
-    fish.push(new Fish({ x: 280, y: 130, size: 21, speed: 1.0, hue: 280, type: 'round', stage: 'adult' }));
+    for (let i = 0; i < 2; i++) {
+      const type = (['basic', 'long', 'round'] as FishType[])[Math.floor(Math.random() * 3)];
+      const maxS = 17 + Math.floor(Math.random() * 6);
+      const m    = Math.round(maxS * 0.38) * 2;
+      fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: Math.floor(Math.random() * 360), type, stage: 'fry' }));
+    }
   }
 }
 

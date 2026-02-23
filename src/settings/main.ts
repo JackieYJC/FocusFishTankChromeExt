@@ -245,30 +245,31 @@ document.getElementById('reset-tank-btn')!.addEventListener('click', async () =>
   );
   if (!confirmed) return;
 
-  // Spawn 3 default adult fish so the tank is never empty after reset
+  // Start with 2 random fry so there's life in the tank right away
+  const allTypes: FishType[] = ['basic', 'long', 'round'];
   const now = Date.now();
-  const defaultTypes: { type: FishType; hue: number; speed: number }[] = [
-    { type: 'basic', hue: 155, speed: 1.2 },
-    { type: 'long',  hue:  20, speed: 0.9 },
-    { type: 'round', hue: 280, speed: 1.0 },
-  ];
-  const defaultFish: FishSnapshot[] = defaultTypes.map(({ type, hue, speed }, i) => ({
-    id:         (now + i).toString(36) + Math.random().toString(36).slice(2),
-    type, hue, speed,
-    stage:      'adult',
-    health:     80,
-    maxSize:    DEFAULT_FISH_SIZES[type],
-    growth:     0,
-    foodGrowth: 0,
-    bornAt:     now,
-  }));
+  const defaultFish: FishSnapshot[] = Array.from({ length: 2 }, (_, i) => {
+    const type = allTypes[Math.floor(Math.random() * allTypes.length)];
+    return {
+      id:         (now + i).toString(36) + Math.random().toString(36).slice(2),
+      type,
+      hue:        Math.floor(Math.random() * 360),
+      speed:      0.8 + Math.random() * 0.6,
+      stage:      'fry' as const,
+      health:     80,
+      maxSize:    17 + Math.floor(Math.random() * 6),
+      growth:     0,
+      foodGrowth: 0,
+      bornAt:     now,
+    };
+  });
 
   await chrome.storage.local.set({
     tankFish: defaultFish, releasedFish: [], graveyardFish: [], pendingFish: [],
     coins: 0, focusScore: 70, totalFocusMinutes: 0, totalDistractedMinutes: 0,
     lastDailyClaim: 0,
   });
-  toast('Tank reset. Starting fresh with 3 fish!');
+  toast('Tank reset. Two little fry are ready to grow!');
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
