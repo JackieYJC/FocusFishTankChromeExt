@@ -287,12 +287,68 @@ export class Ripple {
   get alive(): boolean { return this.alpha > 0; }
 }
 
+// ─── Sparkle (high-health shimmer particles) ──────────────────────────────────
+
+class Sparkle {
+  x: number; y: number;
+  alpha = 0;
+  maxAlpha: number;
+  size: number;
+  phase: number;
+  ttl: number;
+  maxTtl: number;
+
+  constructor(W: number, H: number) {
+    this.x       = 15 + Math.random() * (W - 30);
+    this.y       = 8  + Math.random() * (H * 0.72);
+    this.maxAlpha = 0.45 + Math.random() * 0.45;
+    this.size    = 1.5 + Math.random() * 2.5;
+    this.phase   = Math.random() * Math.PI * 2;
+    this.maxTtl  = 70 + Math.random() * 60;
+    this.ttl     = this.maxTtl;
+  }
+
+  update(): void {
+    this.ttl--;
+    this.phase += 0.12;
+    const p = 1 - this.ttl / this.maxTtl;
+    if      (p < 0.2) this.alpha = (p / 0.2) * this.maxAlpha;
+    else if (p > 0.7) this.alpha = ((1 - p) / 0.3) * this.maxAlpha;
+    else              this.alpha = this.maxAlpha;
+  }
+
+  draw(c: CanvasRenderingContext2D): void {
+    if (this.alpha <= 0) return;
+    const s = this.size * (0.85 + Math.sin(this.phase) * 0.15);
+    c.save();
+    c.globalAlpha = this.alpha;
+    c.translate(this.x, this.y);
+    c.strokeStyle = '#cce8ff';
+    c.lineWidth   = 0.9;
+    for (let i = 0; i < 4; i++) {
+      const angle = (i / 4) * Math.PI;
+      c.beginPath();
+      c.moveTo(Math.cos(angle) * s * 0.25, Math.sin(angle) * s * 0.25);
+      c.lineTo(Math.cos(angle) * s,         Math.sin(angle) * s);
+      c.stroke();
+    }
+    c.beginPath();
+    c.arc(0, 0, s * 0.22, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(255,255,255,0.9)';
+    c.fill();
+    c.restore();
+  }
+
+  get alive(): boolean { return this.ttl > 0; }
+}
+
 // ─── Scene arrays ─────────────────────────────────────────────────────────────
 // Declared after class definitions to avoid TDZ errors (classes are not hoisted).
 
 export const fish:        Fish[]       = [];
 export const foodPellets: FoodPellet[] = [];
 export const ripples:     Ripple[]     = [];
+export const sparkles:    Sparkle[]   = [];
 export const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
 export const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
 
@@ -372,31 +428,92 @@ export async function checkPendingFish(showBurst: (msg: string) => void): Promis
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
+// Mold blob positions along the sand line (static layout, intensity driven by health)
+const MOLD_PATCHES = [
+  { x:  25, rx: 38, ry: 10 }, { x:  90, rx: 28, ry:  8 }, { x: 155, rx: 32, ry: 11 },
+  { x: 210, rx: 24, ry:  7 }, { x: 265, rx: 30, ry: 10 }, { x: 330, rx: 35, ry:  9 },
+];
+
 function drawWater(): void {
-  const dark = (1 - gameState.tankHealth / 100) * 0.55;
+  const health = gameState.tankHealth;
+  const dark   = (1 - health / 100) * 0.55;
+
+  // ── Background gradient ─────────────────────────────────────────────────────
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, `hsl(210,${68 - dark*30}%,${20 - dark*12}%)`);
   grad.addColorStop(1, `hsl(220,${75 - dark*30}%,${12 - dark*8}%)`);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  if (gameState.tankHealth > 45) {
+  // ── Light rays from above (scale with health) ───────────────────────────────
+  if (health > 45) {
+    const power = (health - 45) / 55;         // 0 → 1 as health goes 45 → 100
     ctx.save();
-    ctx.globalAlpha = ((gameState.tankHealth - 45) / 55) * 0.07;
+    ctx.globalAlpha = power * 0.20;
     for (let i = 0; i < 5; i++) {
       const rx = 50 + i * 65;
-      ctx.beginPath(); ctx.moveTo(rx-12,0); ctx.lineTo(rx+12,0); ctx.lineTo(rx+45,H-20); ctx.lineTo(rx+22,H-20);
-      ctx.fillStyle='rgba(180,220,255,1)'; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(rx - 12, 0); ctx.lineTo(rx + 12, 0);
+      ctx.lineTo(rx + 45, H - 20); ctx.lineTo(rx + 22, H - 20);
+      ctx.fillStyle = 'rgba(180,220,255,1)';
+      ctx.fill();
     }
+    ctx.restore();
+
+    // Surface shimmer at high health
+    if (health > 65) {
+      const shimmer = (health - 65) / 35;
+      ctx.save();
+      const sg = ctx.createLinearGradient(0, 0, 0, 20);
+      sg.addColorStop(0, `rgba(190,235,255,${shimmer * 0.28})`);
+      sg.addColorStop(1, 'rgba(190,235,255,0)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(0, 0, W, 20);
+      ctx.restore();
+    }
+  }
+
+  // ── Sand ────────────────────────────────────────────────────────────────────
+  const sand = ctx.createLinearGradient(0, H - 20, 0, H);
+  sand.addColorStop(0, '#c9aa58'); sand.addColorStop(1, '#a07c30');
+  ctx.fillStyle = sand;
+  ctx.fillRect(0, H - 20, W, 20);
+
+  // ── Mold patches at low health ──────────────────────────────────────────────
+  if (health < 55) {
+    const t = (55 - health) / 55;          // 0 → 1 as health 55 → 0
+    ctx.save();
+    // Blobs along the sand line
+    for (const p of MOLD_PATCHES) {
+      const ry = p.ry * (0.4 + t * 0.6);
+      ctx.beginPath();
+      ctx.ellipse(p.x, H - 20, p.rx * (0.3 + t * 0.7), ry, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(28,55,18,${t * 0.72})`;
+      ctx.fill();
+      // Lighter highlight on each blob
+      ctx.beginPath();
+      ctx.ellipse(p.x - 4, H - 20 - ry * 0.4, p.rx * 0.3 * t, ry * 0.35 * t, -0.3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(55,90,30,${t * 0.45})`;
+      ctx.fill();
+    }
+    // Corner mold creeping up the walls
+    const wallH = (H - 20) * t * 0.35;
+    const wg1 = ctx.createLinearGradient(0, H - 20, 0, H - 20 - wallH);
+    wg1.addColorStop(0, `rgba(25,52,15,${t * 0.55})`);
+    wg1.addColorStop(1, 'rgba(25,52,15,0)');
+    ctx.fillStyle = wg1;
+    ctx.fillRect(0, H - 20 - wallH, 28, wallH);
+    const wg2 = ctx.createLinearGradient(0, H - 20, 0, H - 20 - wallH);
+    wg2.addColorStop(0, `rgba(25,52,15,${t * 0.55})`);
+    wg2.addColorStop(1, 'rgba(25,52,15,0)');
+    ctx.fillStyle = wg2;
+    ctx.fillRect(W - 28, H - 20 - wallH, 28, wallH);
     ctx.restore();
   }
 
-  const sand = ctx.createLinearGradient(0, H-20, 0, H);
-  sand.addColorStop(0, '#c9aa58'); sand.addColorStop(1, '#a07c30');
-  ctx.fillStyle = sand; ctx.fillRect(0, H-20, W, 20);
-
-  if (gameState.tankHealth < 40) {
-    ctx.fillStyle = `rgba(60,15,0,${(40 - gameState.tankHealth) / 130})`;
+  // ── Dark murky overlay at very low health ───────────────────────────────────
+  if (health < 40) {
+    ctx.fillStyle = `rgba(60,15,0,${(40 - health) / 130})`;
     ctx.fillRect(0, 0, W, H);
   }
 }
@@ -410,11 +527,18 @@ export function render(): void {
   for (const p of foodPellets) { p.update(); p.draw(ctx); }
   for (const r of ripples)     { r.update(); r.draw(ctx); }
 
+  // Sparkles — spawn randomly when tank is healthy (>70), rate scales with surplus health
+  if (gameState.tankHealth > 70 && Math.random() < (gameState.tankHealth - 70) / 30 * 0.12) {
+    sparkles.push(new Sparkle(W, H));
+  }
+  for (const sp of sparkles) { sp.update(); sp.draw(ctx); }
+
   const prune = <T extends { alive: boolean }>(arr: T[]) => {
     for (let i = arr.length - 1; i >= 0; i--) if (!arr[i].alive) arr.splice(i, 1);
   };
   prune(foodPellets);
   prune(ripples);
+  prune(sparkles);
 
   fish.sort((a, b) => a.size - b.size);
   fish.forEach(f => { f.update(W, H, gameState.tankHealth, foodPellets); f.draw(ctx, f.health); });
