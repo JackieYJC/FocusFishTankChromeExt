@@ -65,6 +65,12 @@ export function applyState({ focusScore = 70, totalFocusMinutes = 0,
 
   document.getElementById('focus-time')!.textContent      = fmtTime(totalFocusMinutes);
   document.getElementById('distracted-time')!.textContent = fmtTime(totalDistractedMinutes);
+
+  // Highlight the active time cell
+  const focusCell    = document.getElementById('focus-time')!.closest<HTMLElement>('.time-cell')!;
+  const distractCell = document.getElementById('distracted-time')!.closest<HTMLElement>('.time-cell')!;
+  focusCell.classList.toggle('state-focused',    !isDistracting && !!currentSite);
+  distractCell.classList.toggle('state-distracted', isDistracting);
   document.getElementById('coin-value')!.textContent      = String(Math.floor(coins));
 
   // Notify shop pane of balance change (dispatched as custom event to avoid circular import)

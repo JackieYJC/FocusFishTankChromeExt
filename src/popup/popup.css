@@ -231,6 +231,12 @@ body {
   letter-spacing: 0.6px; color: #5a7aaa; margin-bottom: 3px;
 }
 .time-val { font-size: 18px; font-weight: 700; }
+.time-cell.state-focused    { background: rgba(76,175,80,0.13);  border-radius: 8px; }
+.time-cell.state-distracted { background: rgba(244,67,54,0.13); border-radius: 8px; }
+.time-cell.state-focused    .label { color: #4caf50; }
+.time-cell.state-distracted .label { color: #f44336; }
+.time-cell.state-focused    .time-val { color: #6dd470; }
+.time-cell.state-distracted .time-val { color: #f77; }
 
 /* ── Pomodoro row ────────────────────────────────────────────────────────── */
 #pomo-row {
