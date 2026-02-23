@@ -1,7 +1,8 @@
 // ─── Game state — storage sync, UI feedback ────────────────────────────────────
 
-import { gameState, fish, saveFish, checkPendingFish } from './tank';
-import type { AppState, FishSnapshot } from '../types';
+import { gameState, fish, saveFish, initFish, checkPendingFish } from './tank';
+import type { AppState, FishSnapshot }                            from '../types';
+import { DEFAULT_BLOCKLIST }                                      from '../constants';
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -89,11 +90,27 @@ export async function poll(): Promise<void> {
   try {
     const data = await chrome.storage.local.get([
       'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes',
-      'isDistracting', 'currentSite', 'coins', 'tankFish',
+      'isDistracting', 'currentSite', 'coins', 'tankFish', 'blocklist',
     ]);
-    applyState(data as Partial<AppState>);
 
-    // Sync released fish: remove any whose id is no longer in storage
+    // Real-time focus detection — bypass stale background storage values
+    const blocklist = (data['blocklist'] as string[] | undefined) ?? DEFAULT_BLOCKLIST;
+    let rtIsDistracting = false;
+    let rtCurrentSite   = '';
+    try {
+      const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const tab  = tabs.find(t => t.url &&
+        !t.url.startsWith('chrome://') &&
+        !t.url.startsWith('chrome-extension://'));
+      if (tab?.url) {
+        try { rtCurrentSite = new URL(tab.url).hostname.replace(/^www\./, ''); } catch { /* noop */ }
+        rtIsDistracting = blocklist.some(s => rtCurrentSite === s || rtCurrentSite.endsWith('.' + s));
+      }
+    } catch { /* tabs API unavailable outside extension context */ }
+
+    applyState({ ...(data as Partial<AppState>), isDistracting: rtIsDistracting, currentSite: rtCurrentSite });
+
+    // Sync fish: remove any whose id is no longer in storage (e.g. released from settings)
     const tankFish = data['tankFish'] as FishSnapshot[] | undefined;
     if (tankFish) {
       const storedIds = new Set(tankFish.map(f => f.id));
@@ -103,6 +120,8 @@ export async function poll(): Promise<void> {
         if (fish[i].id && !fish[i].enterFrames && !storedIds.has(fish[i].id)) { fish.splice(i, 1); changed = true; }
       }
       if (changed) saveFish();
+      // Repopulate if tank was reset externally (storage has fish but canvas is empty)
+      if (fish.length === 0 && tankFish.length > 0) await initFish();
     }
 
     await checkPendingFish(showBurst);

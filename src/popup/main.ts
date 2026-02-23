@@ -59,11 +59,50 @@ document.getElementById('reset-btn')!.addEventListener('click', async () => {
   poll();
 });
 
+// ─── Daily coin claim ─────────────────────────────────────────────────────────
+
+const DAILY_REWARD    = 50;
+const DAILY_MS        = 24 * 60 * 60 * 1000;
+
+function initDailyBtn(): void {
+  const btn = document.getElementById('daily-btn') as HTMLButtonElement;
+
+  async function refresh(): Promise<void> {
+    try {
+      const { lastDailyClaim = 0 } = await chrome.storage.local.get('lastDailyClaim') as { lastDailyClaim?: number };
+      const elapsed = Date.now() - lastDailyClaim;
+      if (elapsed >= DAILY_MS) {
+        btn.disabled    = false;
+        btn.textContent = `🎁 Claim Daily +${DAILY_REWARD} coins`;
+      } else {
+        btn.disabled = true;
+        const remaining = Math.ceil((DAILY_MS - elapsed) / 60000);
+        const h = Math.floor(remaining / 60), m = remaining % 60;
+        btn.textContent = `🎁 Next claim in ${h}h ${m}m`;
+      }
+    } catch { /* outside extension context */ }
+  }
+
+  btn.addEventListener('click', async () => {
+    try {
+      const { coins = 0, lastDailyClaim = 0 } = await chrome.storage.local.get(['coins', 'lastDailyClaim']) as { coins?: number; lastDailyClaim?: number };
+      if (Date.now() - lastDailyClaim < DAILY_MS) return;
+      await chrome.storage.local.set({ coins: coins + DAILY_REWARD, lastDailyClaim: Date.now() });
+      poll();
+      refresh();
+    } catch { /* outside extension context */ }
+  });
+
+  refresh();
+  setInterval(refresh, 60_000); // update the "next claim" countdown every minute
+}
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 initDebugPanel();
 initPomodoro();
 initShopPane();
+initDailyBtn();
 
 render();
 initFish().then(() => {

@@ -302,6 +302,16 @@ body {
   100% { opacity: 0; transform: translateY(-40px); }
 }
 
+#daily-btn {
+  padding: 8px; width: 100%;
+  background: #1e1400; color: #f5c842;
+  border: 1px solid #5a4010; border-radius: 8px;
+  cursor: pointer; font-size: 13px; font-weight: 600; letter-spacing: 0.3px;
+  transition: background 0.2s, opacity 0.2s;
+}
+#daily-btn:hover:not(:disabled) { background: #2e1e00; }
+#daily-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
 #reset-btn {
   padding: 8px; width: 100%;
   background: #152240; color: #6a9ac8;

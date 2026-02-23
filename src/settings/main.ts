@@ -1,8 +1,8 @@
 // ─── Settings page ─────────────────────────────────────────────────────────────
 
-import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS } from '../constants';
-import { drawFishPreview }                        from '../fish-renderer';
-import type { FishSnapshot }                      from '../types';
+import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, DEFAULT_FISH_SIZES } from '../constants';
+import { drawFishPreview }                                           from '../fish-renderer';
+import type { FishSnapshot, FishType }                               from '../types';
 
 // ─── Sidebar navigation ───────────────────────────────────────────────────────
 
@@ -244,11 +244,31 @@ document.getElementById('reset-tank-btn')!.addEventListener('click', async () =>
     'Reset Tank — this will permanently delete all your fish, coins, and session stats.\n\nAre you sure?'
   );
   if (!confirmed) return;
+
+  // Spawn 3 default adult fish so the tank is never empty after reset
+  const now = Date.now();
+  const defaultTypes: { type: FishType; hue: number; speed: number }[] = [
+    { type: 'basic', hue: 155, speed: 1.2 },
+    { type: 'long',  hue:  20, speed: 0.9 },
+    { type: 'round', hue: 280, speed: 1.0 },
+  ];
+  const defaultFish: FishSnapshot[] = defaultTypes.map(({ type, hue, speed }, i) => ({
+    id:         (now + i).toString(36) + Math.random().toString(36).slice(2),
+    type, hue, speed,
+    stage:      'adult',
+    health:     80,
+    maxSize:    DEFAULT_FISH_SIZES[type],
+    growth:     0,
+    foodGrowth: 0,
+    bornAt:     now,
+  }));
+
   await chrome.storage.local.set({
-    tankFish: [], releasedFish: [], graveyardFish: [], pendingFish: [],
+    tankFish: defaultFish, releasedFish: [], graveyardFish: [], pendingFish: [],
     coins: 0, focusScore: 70, totalFocusMinutes: 0, totalDistractedMinutes: 0,
+    lastDailyClaim: 0,
   });
-  toast('Tank reset. Everything cleared.');
+  toast('Tank reset. Starting fresh with 3 fish!');
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
