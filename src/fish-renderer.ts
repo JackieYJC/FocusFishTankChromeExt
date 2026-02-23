@@ -7,45 +7,37 @@ import type { FishType, FishStage } from './types';
 // ── Colour palette ─────────────────────────────────────────────────────────
 
 interface DrawColors {
-  hue:       number;   // raw species hue (for gradients, iris, glow)
+  hue:       number;   // species hue (constant throughout lifetime)
   col:       string;   // main body fill
   dark:      string;   // fins, tail, outline, stripe
-  highlight: string;   // bright gradient centre
-  belly:     string;   // pale underside
-  shimmer:   string;   // top-side highlight stripe
+  highlight: string;   // lighter gradient centre (always hue-tinted, never white)
 }
 
 function adultColors(hue: number, health: number): DrawColors {
-  const h = (health / 100) * hue;
+  // Hue is fixed — health only shifts saturation and lightness
+  const t   = health / 100;
+  const sat = Math.round(35 + t * 47);        // 82% healthy → 35% very sick
+  const lit = Math.round(36 + t * 14);        // 50% healthy → 36% very sick
   return {
     hue,
-    col:       `hsl(${h},82%,50%)`,
-    dark:      `hsl(${h},76%,28%)`,
-    highlight: `hsl(${h},88%,78%)`,
-    belly:     `hsla(${h},55%,84%,0.62)`,
-    shimmer:   `hsla(${h},95%,90%,0.52)`,
+    col:       `hsl(${hue},${sat}%,${lit}%)`,
+    dark:      `hsl(${hue},${Math.round(sat * 0.9)}%,${Math.round(lit * 0.58)}%)`,
+    highlight: `hsl(${hue},${Math.round(sat * 0.68)}%,${Math.min(66, lit + 17)}%)`,
   };
 }
 
 function juvenileColors(hue: number): DrawColors {
-  const h = Math.round(175 + (hue - 175) * 0.5);
+  // Same hue as adult — monochromatic, just more muted
   return {
-    hue: h,
-    col:       `hsl(${h},36%,46%)`,
-    dark:      `hsl(${h},36%,30%)`,
-    highlight: `hsl(${h},42%,68%)`,
-    belly:     `hsla(${h},22%,72%,0.5)`,
-    shimmer:   `hsla(${h},40%,72%,0.38)`,
+    hue,
+    col:       `hsl(${hue},38%,44%)`,
+    dark:      `hsl(${hue},38%,28%)`,
+    highlight: `hsl(${hue},28%,58%)`,
   };
 }
 
 const GRAY: DrawColors = {
-  hue: 0,
-  col:       '#6a6a6a',
-  dark:      '#434343',
-  highlight: '#a0a0a0',
-  belly:     'rgba(195,195,195,0.42)',
-  shimmer:   'rgba(185,185,185,0.32)',
+  hue: 0, col: '#6a6a6a', dark: '#434343', highlight: '#a0a0a0',
 };
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
@@ -67,9 +59,9 @@ function drawEye(
   // Pupil
   ctx.beginPath(); ctx.arc(ex + r * 0.18, ey, r * 0.34, 0, Math.PI * 2);
   ctx.fillStyle = '#111'; ctx.fill();
-  // Specular highlight
-  ctx.beginPath(); ctx.arc(ex - r * 0.05, ey - r * 0.3, r * 0.24, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.fill();
+  // Specular highlight (small)
+  ctx.beginPath(); ctx.arc(ex - r * 0.05, ey - r * 0.3, r * 0.13, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.80)'; ctx.fill();
 }
 
 /** Soft colour glow behind the body — only for healthy fish (health > 55). */
@@ -115,10 +107,6 @@ function drawBasicShape(
   ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.52, 0, 0, Math.PI * 2);
   ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.042; ctx.stroke();
 
-  // ── Belly highlight ──
-  ctx.beginPath(); ctx.ellipse(s * 0.12, s * 0.24, s * 0.50, s * 0.20, 0.22, 0, Math.PI * 2);
-  ctx.fillStyle = c.belly; ctx.fill();
-
   // ── Sick tint ──
   if (health !== undefined && health < 20) {
     ctx.beginPath(); ctx.ellipse(0, s * 0.05, s * 0.60, s * 0.38, 0, 0, Math.PI * 2);
@@ -134,10 +122,6 @@ function drawBasicShape(
   ctx.moveTo(-s * 0.06, -s * 0.52);
   ctx.bezierCurveTo(s * 0.12, -s * 0.98, s * 0.44, -s * 0.96, s * 0.64, -s * 0.52);
   ctx.fillStyle = c.dark; ctx.fill();
-
-  // ── Shimmer stripe ──
-  ctx.beginPath(); ctx.ellipse(s * 0.14, -s * 0.12, s * 0.46, s * 0.17, -0.3, 0, Math.PI * 2);
-  ctx.fillStyle = c.shimmer; ctx.fill();
 
   // ── Eye ──
   drawEye(ctx, s * 0.58, -s * 0.07, s * 0.19, c.hue);
@@ -178,17 +162,9 @@ function drawLongShape(
   ctx.beginPath(); ctx.ellipse(0, 0, s * 1.4, s * 0.38, 0, 0, Math.PI * 2);
   ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.04; ctx.stroke();
 
-  // ── Belly highlight ──
-  ctx.beginPath(); ctx.ellipse(s * 0.05, s * 0.18, s * 0.88, s * 0.15, 0.12, 0, Math.PI * 2);
-  ctx.fillStyle = c.belly; ctx.fill();
-
   // ── Lateral stripe (dark mid-band) ──
   ctx.beginPath(); ctx.ellipse(0, 0, s * 1.12, s * 0.11, 0, 0, Math.PI * 2);
   ctx.fillStyle = c.dark; ctx.fill();
-
-  // ── Shimmer stripe (above the lateral stripe) ──
-  ctx.beginPath(); ctx.ellipse(s * 0.08, -s * 0.10, s * 0.92, s * 0.14, -0.18, 0, Math.PI * 2);
-  ctx.fillStyle = c.shimmer; ctx.fill();
 
   // ── Sick tint ──
   if (health !== undefined && health < 20) {
@@ -243,10 +219,6 @@ function drawRoundShape(
   // ── Body outline ──
   ctx.beginPath(); ctx.ellipse(0, 0, s * 0.95, s * 0.85, 0, 0, Math.PI * 2);
   ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.042; ctx.stroke();
-
-  // ── Belly highlight ──
-  ctx.beginPath(); ctx.ellipse(s * 0.10, s * 0.32, s * 0.55, s * 0.32, 0.20, 0, Math.PI * 2);
-  ctx.fillStyle = c.belly; ctx.fill();
 
   // ── Sick tint ──
   if (health !== undefined && health < 20) {
