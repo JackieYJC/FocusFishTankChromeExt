@@ -11,7 +11,8 @@ export function initDebugPanel(): void {
   });
 
   document.getElementById('debug-health-slider')!.addEventListener('input', e => {
-    gameState.tankHealth = Number((e.target as HTMLInputElement).value);
+    gameState.tankHealth        = Number((e.target as HTMLInputElement).value);
+    gameState.debugHealthLocked = true;
     document.getElementById('debug-health-val')!.textContent = String(gameState.tankHealth);
   });
 

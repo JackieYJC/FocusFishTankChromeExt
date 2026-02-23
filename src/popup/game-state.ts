@@ -43,7 +43,7 @@ export function applyState({ focusScore = 70, totalFocusMinutes = 0,
   totalDistractedMinutes = 0, isDistracting = false, currentSite = '', coins = 0 }: Partial<AppState>): void {
 
   gameState.health = focusScore;
-  if (!gameState.debugMode) {
+  if (!gameState.debugHealthLocked) {
     gameState.tankHealth = focusScore;
     (document.getElementById('debug-health-slider') as HTMLInputElement).value = String(gameState.tankHealth);
     document.getElementById('debug-health-val')!.textContent = String(Math.round(gameState.tankHealth));

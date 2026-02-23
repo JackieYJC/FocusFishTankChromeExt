@@ -10,13 +10,14 @@ const { BASE_GROWTH_RATE, FOOD_GROWTH_CAP, FOOD_GROWTH_BONUS } = GAME_BALANCE;
 // Exported as a plain object so any module can read/write without circular deps.
 
 export const gameState = {
-  tankHealth:      70,
-  health:          70,     // mirrors focusScore; used for fish growth tick
-  debugMode:       false,
-  hpReact:         0.002,  // exponential HP chase coefficient per frame
-  coinAccrualMult: 1,      // debug multiplier
-  growthSpeed:     1,      // debug multiplier
-  lastCoins:       null as number | null,
+  tankHealth:        70,
+  health:            70,     // mirrors focusScore; used for fish growth tick
+  debugMode:         false,
+  debugHealthLocked: false,  // true once health slider is manually moved; stops poll from overriding tankHealth
+  hpReact:           0.002,  // exponential HP chase coefficient per frame
+  coinAccrualMult:   1,      // debug multiplier
+  growthSpeed:       1,      // debug multiplier
+  lastCoins:         null as number | null,
 };
 
 // ─── Canvas setup ─────────────────────────────────────────────────────────────
