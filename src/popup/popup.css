@@ -127,6 +127,14 @@ body {
   transition: background 0.15s;
 }
 #debug-pomo-btn:hover { background: rgba(80,160,80,0.3); }
+#debug-fish-btn {
+  flex: 2; padding: 3px 6px;
+  background: rgba(60,130,200,0.15);
+  color: #88bbee; border: 1px solid rgba(60,130,200,0.35); border-radius: 4px;
+  cursor: pointer; font: bold 10px monospace; white-space: nowrap;
+  transition: background 0.15s;
+}
+#debug-fish-btn:hover { background: rgba(60,130,200,0.3); }
 
 /* ── Tab bar ──────────────────────────────────────────────────────────────── */
 #tab-bar {

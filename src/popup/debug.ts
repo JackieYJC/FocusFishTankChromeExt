@@ -1,7 +1,7 @@
 // ─── Debug panel ───────────────────────────────────────────────────────────────
 
-import { gameState } from './tank';
-import { poll }      from './game-state';
+import { gameState, spawnRewardFish } from './tank';
+import { poll }                       from './game-state';
 
 export function initDebugPanel(): void {
   document.getElementById('debug-btn')!.addEventListener('click', () => {
@@ -42,6 +42,8 @@ export function initDebugPanel(): void {
       poll();
     } catch { /* outside extension context */ }
   });
+
+  document.getElementById('debug-fish-btn')!.addEventListener('click', () => spawnRewardFish());
 
   // Extra coin accrual while debug is active
   setInterval(async () => {
