@@ -46,7 +46,7 @@ function buildShopGrid(): void {
     card.className     = 'spc';
     card.dataset['type'] = item.type;
     card.innerHTML = `
-      <canvas class="spc-canvas" width="88" height="58"></canvas>
+      <canvas class="spc-canvas" width="80" height="48"></canvas>
       <div class="spc-info">
         <span class="spc-name">${item.name}</span>
         <span class="spc-desc">${item.desc}</span>
@@ -59,7 +59,7 @@ function buildShopGrid(): void {
 
 // ─── Purchase handler ─────────────────────────────────────────────────────────
 
-export function initShopPane(switchToTank: () => void): void {
+export function initShopPane(): void {
   buildShopGrid();
 
   // Listen for coin updates from game-state (avoids circular import)
@@ -85,7 +85,6 @@ export function initShopPane(switchToTank: () => void): void {
       updateShopPaneBalance(newCoins);
       document.getElementById('coin-value')!.textContent = String(Math.floor(newCoins));
       spawnDropFish(item.type, hue);
-      switchToTank();
     } catch { /* outside extension context */ }
   });
 }

@@ -93,7 +93,8 @@ export async function poll(): Promise<void> {
       const storedIds = new Set(tankFish.map(f => f.id));
       let changed = false;
       for (let i = fish.length - 1; i >= 0; i--) {
-        if (fish[i].id && !storedIds.has(fish[i].id)) { fish.splice(i, 1); changed = true; }
+        // Skip fish still entering (enterFrames > 0): they haven't been persisted yet.
+        if (fish[i].id && !fish[i].enterFrames && !storedIds.has(fish[i].id)) { fish.splice(i, 1); changed = true; }
       }
       if (changed) saveFish();
     }

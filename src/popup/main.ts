@@ -63,7 +63,7 @@ document.getElementById('reset-btn')!.addEventListener('click', async () => {
 
 initDebugPanel();
 initPomodoro();
-initShopPane(() => switchTab('tank'));
+initShopPane();
 
 render();
 initFish().then(() => {

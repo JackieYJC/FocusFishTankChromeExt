@@ -159,7 +159,7 @@ body {
 #shop-pane-grid { display: flex; flex-direction: column; gap: 6px; }
 .spc {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 8px;
+  padding: 5px 10px; border-radius: 8px;
   background: #0a1525; border: 1px solid #1a3050;
   transition: opacity 0.2s;
 }

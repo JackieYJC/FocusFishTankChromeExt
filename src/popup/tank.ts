@@ -25,14 +25,6 @@ export const W = 360, H = 260;
 export const canvas = document.getElementById('tank') as HTMLCanvasElement;
 export const ctx    = canvas.getContext('2d')!;
 
-// ─── Scene arrays ─────────────────────────────────────────────────────────────
-
-export const fish:        Fish[]       = [];
-export const foodPellets: FoodPellet[] = [];
-export const ripples:     Ripple[]     = [];
-export const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
-export const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
-
 // ─── Fish ─────────────────────────────────────────────────────────────────────
 
 interface FishOptions {
@@ -295,6 +287,15 @@ export class Ripple {
   get alive(): boolean { return this.alpha > 0; }
 }
 
+// ─── Scene arrays ─────────────────────────────────────────────────────────────
+// Declared after class definitions to avoid TDZ errors (classes are not hoisted).
+
+export const fish:        Fish[]       = [];
+export const foodPellets: FoodPellet[] = [];
+export const ripples:     Ripple[]     = [];
+export const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
+export const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
+
 // ─── Fish persistence ─────────────────────────────────────────────────────────
 
 let saveFishTimer: ReturnType<typeof setTimeout> | null = null;
@@ -418,19 +419,18 @@ export function render(): void {
   fish.sort((a, b) => a.size - b.size);
   fish.forEach(f => { f.update(W, H, gameState.tankHealth, foodPellets); f.draw(ctx, f.health); });
 
-  // Always-visible growth bars for fry and juvenile
-  for (const f of fish) {
-    if (f.stage === 'adult' || f.stage === 'dead' || f.enterFrames > 0) continue;
-    const barW = Math.max(f.size * 2.5, 18);
-    const bx   = f.x - barW / 2;
-    const by   = f.y + f.size + 4;
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.fillRect(bx, by, barW, 4);
-    ctx.fillStyle = f.stage === 'fry' ? '#44cc88' : '#6699ff';
-    ctx.fillRect(bx, by, barW * (f.growth / 100), 4);
-  }
-
   if (gameState.debugMode) {
+    // Growth bars for fry and juvenile
+    for (const f of fish) {
+      if (f.stage === 'adult' || f.stage === 'dead' || f.enterFrames > 0) continue;
+      const barW = Math.max(f.size * 2.5, 18);
+      const bx   = f.x - barW / 2;
+      const by   = f.y + f.size + 4;
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fillRect(bx, by, barW, 4);
+      ctx.fillStyle = f.stage === 'fry' ? '#44cc88' : '#6699ff';
+      ctx.fillRect(bx, by, barW * (f.growth / 100), 4);
+    }
     ctx.textAlign = 'center';
     ctx.font = 'bold 9px monospace';
     for (const f of fish) {

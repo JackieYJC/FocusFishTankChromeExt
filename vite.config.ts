@@ -31,6 +31,9 @@ export default defineConfig({
   // dist/popup/popup.html and dist/settings/settings.html (no src/ prefix).
   root: resolve(__dirname, 'src'),
 
+  // Chrome extensions require relative asset paths — absolute /assets/... won't resolve.
+  base: './',
+
   build: {
     outDir:      resolve(__dirname, 'dist'),
     emptyOutDir: true,
