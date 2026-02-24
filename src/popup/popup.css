@@ -101,11 +101,43 @@ body {
   border-radius: 6px;
   color: rgba(255,255,255,0.55);
   font-size: 14px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
   transition: background 0.2s, color 0.2s;
 }
+#debug-btn.dev-visible { display: flex; }
 #debug-btn:hover { background: rgba(0,0,0,0.6); color: white; }
 #debug-btn.active { background: rgba(80,40,0,0.7); color: #ffaa44; border-color: rgba(255,160,60,0.5); }
+
+/* ── Dev console overlay ──────────────────────────────────────────────────── */
+#dev-console {
+  display: none;
+  position: absolute; bottom: 0; left: 0; right: 0;
+  align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 8, 4, 0.93);
+  border-top: 1px solid rgba(0, 210, 90, 0.35);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  z-index: 20;
+  backdrop-filter: blur(3px);
+}
+#dev-console.visible {
+  display: flex;
+  animation: devConsoleFadeIn 0.1s ease-out;
+}
+@keyframes devConsoleFadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dev-prompt {
+  color: #00d060; font-size: 13px; font-weight: bold; flex-shrink: 0;
+  text-shadow: 0 0 6px rgba(0,210,90,0.6);
+}
+#dev-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: #00d060; font-family: inherit; font-size: 13px;
+  caret-color: #00d060; letter-spacing: 0.5px;
+}
+#dev-input::placeholder { color: rgba(0, 200, 80, 0.25); }
 
 /* Arrange (rearrange decorations) button — bottom-right of tank */
 #arrange-btn {

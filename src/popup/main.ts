@@ -196,6 +196,52 @@ document.getElementById('settings-btn')!.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
+// ─── Dev console (Tab → type "debug" → Enter to toggle debug button) ─────────
+
+const devConsole = document.getElementById('dev-console')!;
+const devInput   = document.getElementById('dev-input') as HTMLInputElement;
+const debugBtn   = document.getElementById('debug-btn')!;
+
+function closeDevConsole(): void {
+  devInput.value = '';
+  devConsole.classList.remove('visible');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const opening = !devConsole.classList.contains('visible');
+    if (opening) {
+      devConsole.classList.add('visible');
+      devInput.focus();
+    } else {
+      closeDevConsole();
+    }
+  }
+});
+
+devInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (devInput.value === 'debug') {
+      const nowVisible = debugBtn.classList.toggle('dev-visible');
+      // If hiding the button while debug panel is open, close the panel too
+      if (!nowVisible && gameState.debugMode) {
+        gameState.debugMode = false;
+        debugBtn.classList.remove('active');
+        document.getElementById('debug-panel')!.classList.remove('visible');
+      }
+    }
+    closeDevConsole();
+    e.stopPropagation();
+  } else if (e.key === 'Escape') {
+    closeDevConsole();
+    e.stopPropagation();
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    closeDevConsole();
+  }
+});
+
 // ─── Popup toast (triggered by shop-pane via CustomEvent) ─────────────────────
 
 let popupToastTimer: ReturnType<typeof setTimeout> | undefined;
