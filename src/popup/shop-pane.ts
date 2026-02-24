@@ -2,7 +2,7 @@
 
 import { spawnDropFish, spawnDropDecoration, saveBackground } from './tank';
 import { drawFishPreview, drawDecorationPreview, drawBackgroundPreview } from '../fish-renderer';
-import { SHOP_ITEMS, DECORATION_ITEMS, BACKGROUND_ITEMS } from '../constants';
+import { SHOP_ITEMS, DECORATION_ITEMS, BACKGROUND_ITEMS, SPECIES_HUE } from '../constants';
 import type { FishType, DecorationType, BackgroundType } from '../types';
 
 // ─── Background state (module-level) ─────────────────────────────────────────
@@ -51,13 +51,7 @@ export function renderShopPanePreviews(): void {
     const type = canvas.closest<HTMLElement>('.spc')?.dataset['type'];
     const item = SHOP_ITEMS.find(i => i.type === type);
     if (!item) return;
-    const demoHue = type === 'basic'  ? 155
-                  : type === 'long'   ? 20
-                  : type === 'angel'  ? 45
-                  : type === 'betta'  ? 260
-                  : type === 'dragon' ? 15
-                  : 280;
-    drawFishPreview(canvas, item.type, demoHue, 'adult');
+    drawFishPreview(canvas, item.type, SPECIES_HUE[item.type], 'adult');
   });
 
   // Decoration previews

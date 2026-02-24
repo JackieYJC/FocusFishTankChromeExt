@@ -3,7 +3,7 @@
   "name": "Focus Fish Tank",
   "version": "0.1.0",
   "description": "Stay focused or your fish will suffer. A virtual fish tank that reacts to your browsing habits.",
-  "permissions": ["tabs", "storage", "alarms"],
+  "permissions": ["tabs", "storage", "alarms", "notifications"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

@@ -714,38 +714,57 @@ export function drawBackgroundPreview(canvas: HTMLCanvasElement, type: Backgroun
 
 // ── Decoration drawing ─────────────────────────────────────────────────────
 
+// Plant health helpers — used by all organic decorations (not treasure_chest).
+// health 0-100: <30 = dead (grayscale, static), 30-60 = alive (desaturated, slow), >=60 = well (full).
+
+function plantHsl(hue: number, sat: number, lit: number, health: number): string {
+  if (health < 30) return `hsl(0,0%,${Math.round(lit * 0.70)}%)`;
+  const sf = Math.min(1, (health - 30) / 30);
+  return `hsl(${hue},${Math.round(sat * sf)}%,${lit}%)`;
+}
+
+function plantPhase(phase: number, health: number): number {
+  if (health < 30) return 0;
+  if (health < 60) return phase * (health - 30) / 30;
+  return phase;
+}
+
 function drawKelp(
   ctx: CanvasRenderingContext2D, baseY: number, scale: number, hue: number, phase: number,
+  health = 100,
 ): void {
   const h = 55 * scale;
   const joints = 5;
   const segH = h / joints;
+  const ph = plantPhase(phase, health);
+  const dead = health < 30;
 
   for (let stalk = -1; stalk <= 1; stalk += 2) {
-    ctx.strokeStyle = `hsl(${hue},62%,30%)`; ctx.lineWidth = 3.5 * scale; ctx.lineCap = 'round';
+    ctx.strokeStyle = plantHsl(hue, 62, 30, health); ctx.lineWidth = 3.5 * scale; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(stalk * 5 * scale, baseY);
     for (let i = 0; i < joints; i++) {
-      const sway = Math.sin(phase + i * 0.7 + stalk * 0.4) * (3 + i * 1.4) * scale;
+      const sway = dead ? 0 : Math.sin(ph + i * 0.7 + stalk * 0.4) * (3 + i * 1.4) * scale;
       ctx.lineTo(stalk * 5 * scale + sway, baseY - (i + 1) * segH);
     }
     ctx.stroke();
 
     // Fronds at each joint
     for (let i = 1; i < joints; i++) {
-      const sway = Math.sin(phase + i * 0.7 + stalk * 0.4) * (3 + i * 1.4) * scale;
+      const sway = dead ? 0 : Math.sin(ph + i * 0.7 + stalk * 0.4) * (3 + i * 1.4) * scale;
       const jx = stalk * 5 * scale + sway;
       const jy = baseY - i * segH;
       const fLen = (8 + i * 2) * scale;
       ctx.beginPath();
       ctx.moveTo(jx, jy);
       ctx.bezierCurveTo(jx + stalk * fLen * 0.5, jy - fLen * 0.3, jx + stalk * fLen * 0.8, jy - fLen * 0.1, jx + stalk * fLen, jy + fLen * 0.2);
-      ctx.strokeStyle = `hsl(${hue},58%,36%)`; ctx.lineWidth = 2 * scale; ctx.stroke();
+      ctx.strokeStyle = plantHsl(hue, 58, 36, health); ctx.lineWidth = 2 * scale; ctx.stroke();
     }
   }
 }
 
 function drawCoralFan(
   ctx: CanvasRenderingContext2D, baseY: number, scale: number, hue: number,
+  health = 100,
 ): void {
   const h = 42 * scale;
   const w = 36 * scale;
@@ -755,7 +774,7 @@ function drawCoralFan(
   ctx.beginPath();
   ctx.moveTo(0, baseY);
   ctx.lineTo(0, baseY - h * 0.25);
-  ctx.strokeStyle = `hsl(${hue},45%,28%)`; ctx.lineWidth = 4 * scale; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.strokeStyle = plantHsl(hue, 45, 28, health); ctx.lineWidth = 4 * scale; ctx.lineCap = 'round'; ctx.stroke();
 
   // Fan network (lattice lines)
   for (let i = 0; i < numRays; i++) {
@@ -765,7 +784,7 @@ function drawCoralFan(
     ctx.beginPath();
     ctx.moveTo(0, baseY - h * 0.25);
     ctx.quadraticCurveTo(ex * 0.4, baseY - h * 0.25 + (ey - baseY + h * 0.25) * 0.5, ex, ey);
-    ctx.strokeStyle = `hsl(${hue},55%,40%)`; ctx.lineWidth = 1.5 * scale; ctx.stroke();
+    ctx.strokeStyle = plantHsl(hue, 55, 40, health); ctx.lineWidth = 1.5 * scale; ctx.stroke();
   }
   // Cross-hatch connectors
   for (let ring = 0.35; ring <= 0.85; ring += 0.25) {
@@ -776,24 +795,24 @@ function drawCoralFan(
       const ey = baseY - h * 0.25 + Math.sin(angle) * h * ring;
       if (i === 0) ctx.moveTo(ex, ey); else ctx.lineTo(ex, ey);
     }
-    ctx.strokeStyle = `hsl(${hue},48%,38%)`; ctx.lineWidth = 1.0 * scale; ctx.stroke();
+    ctx.strokeStyle = plantHsl(hue, 48, 38, health); ctx.lineWidth = 1.0 * scale; ctx.stroke();
   }
 }
 
 function drawCoralBranch(
   ctx: CanvasRenderingContext2D, baseY: number, scale: number, hue: number,
+  health = 100,
 ): void {
   function branch(x: number, y: number, angle: number, length: number, depth: number): void {
     if (depth === 0) {
-      // Tip node
       ctx.beginPath(); ctx.arc(x, y, 3.5 * scale, 0, Math.PI * 2);
-      ctx.fillStyle = `hsl(${hue + 15},80%,60%)`; ctx.fill();
+      ctx.fillStyle = plantHsl(hue + 15, 80, 60, health); ctx.fill();
       return;
     }
     const ex = x + Math.cos(angle) * length;
     const ey = y + Math.sin(angle) * length;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey);
-    ctx.strokeStyle = `hsl(${hue},65%,${35 + depth * 5}%)`; ctx.lineWidth = (depth + 1) * 1.5 * scale; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.strokeStyle = plantHsl(hue, 65, 35 + depth * 5, health); ctx.lineWidth = (depth + 1) * 1.5 * scale; ctx.lineCap = 'round'; ctx.stroke();
     branch(ex, ey, angle - 0.55, length * 0.68, depth - 1);
     branch(ex, ey, angle + 0.45, length * 0.62, depth - 1);
     if (depth > 2) branch(ex, ey, angle - 0.10, length * 0.75, depth - 1);
@@ -803,17 +822,20 @@ function drawCoralBranch(
 
 function drawAnemone(
   ctx: CanvasRenderingContext2D, baseY: number, scale: number, hue: number, phase: number,
+  health = 100,
 ): void {
   const numTentacles = 8;
   const tLen = 28 * scale;
   const baseR = 7 * scale;
+  const ph   = plantPhase(phase, health);
+  const dead = health < 30;
 
   // Tentacles
   for (let i = 0; i < numTentacles; i++) {
     const baseAngle = (i / numTentacles) * Math.PI * 2;
-    const wave = Math.sin(phase + i * 0.9) * 6 * scale;
+    const wave = dead ? 0 : Math.sin(ph + i * 0.9) * 6 * scale;
     const tx = Math.cos(baseAngle) * tLen * 0.55 + wave;
-    const ty = baseY - tLen + Math.sin(phase + i * 0.7) * 4 * scale;
+    const ty = baseY - tLen + (dead ? 0 : Math.sin(ph + i * 0.7) * 4 * scale);
     const bulbX = tx + Math.cos(baseAngle) * 5 * scale;
     const bulbY = ty - 5 * scale;
 
@@ -824,17 +846,17 @@ function drawAnemone(
       tx, ty + tLen * 0.1,
       tx, ty,
     );
-    ctx.strokeStyle = `hsl(${hue},72%,52%)`; ctx.lineWidth = 2.5 * scale; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.strokeStyle = plantHsl(hue, 72, 52, health); ctx.lineWidth = 2.5 * scale; ctx.lineCap = 'round'; ctx.stroke();
 
     // Bulb tip
     ctx.beginPath(); ctx.arc(bulbX, bulbY, 3.5 * scale, 0, Math.PI * 2);
-    ctx.fillStyle = `hsl(${hue + 20},85%,65%)`; ctx.fill();
+    ctx.fillStyle = plantHsl(hue + 20, 85, 65, health); ctx.fill();
   }
 
   // Central base
   const baseGrad = ctx.createRadialGradient(0, baseY - baseR * 0.5, 0, 0, baseY, baseR * 1.5);
-  baseGrad.addColorStop(0, `hsl(${hue},60%,55%)`);
-  baseGrad.addColorStop(1, `hsl(${hue},55%,32%)`);
+  baseGrad.addColorStop(0, plantHsl(hue, 60, 55, health));
+  baseGrad.addColorStop(1, plantHsl(hue, 55, 32, health));
   ctx.beginPath(); ctx.ellipse(0, baseY - baseR * 0.3, baseR, baseR * 0.6, 0, 0, Math.PI * 2);
   ctx.fillStyle = baseGrad; ctx.fill();
 }
@@ -920,15 +942,16 @@ export function drawDecoration(
   type: DecorationType,
   x: number, y: number,
   hue: number, scale: number, phase: number,
+  health = 100,
 ): void {
   ctx.save();
   ctx.translate(x, 0);
   switch (type) {
-    case 'kelp':           drawKelp(ctx, y, scale, hue, phase);        break;
-    case 'coral_fan':      drawCoralFan(ctx, y, scale, hue);           break;
-    case 'coral_branch':   drawCoralBranch(ctx, y, scale, hue);        break;
-    case 'anemone':        drawAnemone(ctx, y, scale, hue, phase);     break;
-    case 'treasure_chest': drawTreasureChest(ctx, y, scale, hue);      break;
+    case 'kelp':           drawKelp(ctx, y, scale, hue, phase, health);        break;
+    case 'coral_fan':      drawCoralFan(ctx, y, scale, hue, health);           break;
+    case 'coral_branch':   drawCoralBranch(ctx, y, scale, hue, health);        break;
+    case 'anemone':        drawAnemone(ctx, y, scale, hue, phase, health);     break;
+    case 'treasure_chest': drawTreasureChest(ctx, y, scale, hue);              break;
   }
   ctx.restore();
 }

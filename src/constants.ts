@@ -29,7 +29,12 @@ export const GAME_BALANCE = {
 } as const;
 
 export const SPECIES_HUE: Record<FishType, number> = {
-  basic: 155, long: 20, round: 280, angel: 45, betta: 260, dragon: 15,
+  basic: 155,   // green
+  long:  195,   // teal/cyan  (was 20 — too close to dragon's orange)
+  round: 310,   // hot pink   (was 280 — too close to betta's blue)
+  angel:  45,   // gold
+  betta: 235,   // clear blue (was 260 — too purple, too close to round)
+  dragon: 15,   // orange-red
 };
 
 export const STAGE_SIZE_FACTORS: Record<string, number> = {

@@ -18,6 +18,7 @@ chrome.runtime.onInstalled.addListener(() => {
     workHours:       DEFAULT_WORK_HOURS,
     coins:           0,
     lastDailyClaim:  '',   // date string "YYYY-MM-DD"; empty = never claimed
+    lastFocusDate:   '',   // date string "YYYY-MM-DD"; resets daily counters at midnight
   });
   scheduleTick();
 });
@@ -64,27 +65,52 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
     'focusScore', 'focusSecs', 'distractedSecs',
     // legacy keys — migrate on first tick if present
     'totalFocusMinutes', 'totalDistractedMinutes',
-    'blocklist', 'workHours', 'coins',
+    'blocklist', 'workHours', 'coins', 'lastFocusDate',
+    'isDistracting', 'focusTicksSinceNotif',
   ]);
 
-  const blocklist = (data['blocklist'] as string[])    ?? DEFAULT_BLOCKLIST;
-  const workHours = (data['workHours'] as WorkHours)   ?? DEFAULT_WORK_HOURS;
-
-  if (!isWithinWorkHours(workHours)) return;
+  const blocklist            = (data['blocklist']            as string[])  ?? DEFAULT_BLOCKLIST;
+  const workHours            = (data['workHours']            as WorkHours) ?? DEFAULT_WORK_HOURS;
+  const lastFocusDate        = (data['lastFocusDate']        as string)    ?? '';
+  const prevIsDistracting    = (data['isDistracting']        as boolean)   ?? false;
+  const focusTicksSinceNotif = (data['focusTicksSinceNotif'] as number)    ?? 0;
+  const today                = new Date().toLocaleDateString('en-CA'); // "YYYY-MM-DD"
 
   const distracting = isDistracting(url, blocklist);
   const site        = getHostname(url);
 
+  // Migrate legacy minute counters to seconds on first tick that finds them
+  const rawFocusSecs      = data['focusSecs']               as number | undefined;
+  const rawDistractedSecs = data['distractedSecs']          as number | undefined;
+  const legacyFocusMin    = data['totalFocusMinutes']       as number | undefined;
+  const legacyDistMin     = data['totalDistractedMinutes']  as number | undefined;
+  let   focusSecs         = rawFocusSecs      ?? ((legacyFocusMin  ?? 0) * 60);
+  let   distractedSecs    = rawDistractedSecs ?? ((legacyDistMin   ?? 0) * 60);
+
+  // Daily reset at midnight: clear counters when calendar day rolls over
+  if (lastFocusDate !== today) {
+    focusSecs    = 0;
+    distractedSecs = 0;
+  }
+
+  const newFocusSecs    = focusSecs      + (distracting ? 0        : TICK_SECS);
+  const newDistractSecs = distractedSecs + (distracting ? TICK_SECS : 0);
+
+  // Time counters always update regardless of work hours
+  if (!isWithinWorkHours(workHours)) {
+    await chrome.storage.local.set({
+      focusSecs:      newFocusSecs,
+      distractedSecs: newDistractSecs,
+      isDistracting:  distracting,
+      currentSite:    site,
+      lastFocusDate:  today,
+    });
+    return;
+  }
+
+  // Within work hours: also update focus score and coins
   const focusScore = (data['focusScore'] as number) ?? 70;
   const coins      = (data['coins']      as number) ?? 0;
-
-  // Migrate legacy minute counters to seconds on first tick that finds them
-  const rawFocusSecs      = data['focusSecs']      as number | undefined;
-  const rawDistractedSecs = data['distractedSecs'] as number | undefined;
-  const legacyFocusMin    = data['totalFocusMinutes']      as number | undefined;
-  const legacyDistMin     = data['totalDistractedMinutes'] as number | undefined;
-  const focusSecs         = rawFocusSecs      ?? ((legacyFocusMin   ?? 0) * 60);
-  const distractedSecs    = rawDistractedSecs ?? ((legacyDistMin    ?? 0) * 60);
 
   const newScore = distracting
     ? Math.max(0,   focusScore - DECAY)
@@ -93,12 +119,46 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const coinGain = distracting ? 0 : (focusScore / 100) * COIN_RATE;
   const newCoins = Math.round((coins + coinGain) * 1000) / 1000;
 
+  // ── Notifications ─────────────────────────────────────────────────────────
+
+  // Distraction alert: fires once when the user first lands on a blocked site
+  if (!prevIsDistracting && distracting) {
+    chrome.notifications.create('distraction', {
+      type:    'basic',
+      iconUrl: 'icons/icon48.png',
+      title:   'Distraction detected!',
+      message: `${site} is on your blocklist. Your fish are counting on you!`,
+    });
+  }
+
+  // Focus reminder: fires every ~25 minutes of uninterrupted focus
+  const REMINDER_TICKS = 300; // 300 × 5 s = 25 min
+  const FOCUS_MESSAGES = [
+    'Your fish are thriving! Keep it up.',
+    'Your fish are happy and healthy — you\'re on a roll!',
+    '25 minutes of focus! Your fish are living their best life.',
+    'Your fish are glowing with health. Stay in the zone!',
+    'You\'re unstoppable! Your fish couldn\'t be happier.',
+  ];
+  let newFocusTicks = distracting ? 0 : focusTicksSinceNotif + 1;
+  if (!distracting && newFocusTicks >= REMINDER_TICKS) {
+    chrome.notifications.create('focus-reminder', {
+      type:    'basic',
+      iconUrl: 'icons/icon48.png',
+      title:   'Focus streak! 🐟',
+      message: FOCUS_MESSAGES[Math.floor(Math.random() * FOCUS_MESSAGES.length)],
+    });
+    newFocusTicks = 0;
+  }
+
   await chrome.storage.local.set({
-    focusScore:     newScore,
-    focusSecs:      focusSecs      + (distracting ? 0 : TICK_SECS),
-    distractedSecs: distractedSecs + (distracting ? TICK_SECS : 0),
-    isDistracting:  distracting,
-    currentSite:    site,
-    coins:          newCoins,
+    focusScore:          newScore,
+    focusSecs:           newFocusSecs,
+    distractedSecs:      newDistractSecs,
+    isDistracting:       distracting,
+    currentSite:         site,
+    coins:               newCoins,
+    lastFocusDate:       today,
+    focusTicksSinceNotif: newFocusTicks,
   });
 });
