@@ -1,14 +1,19 @@
 // ─── Game state — storage sync, UI feedback ────────────────────────────────────
 
-import { gameState, fish, saveFish, initFish, checkPendingFish } from './tank';
-import type { AppState, FishSnapshot }                            from '../types';
-import { DEFAULT_BLOCKLIST }                                      from '../constants';
+import { gameState, fish, saveFish, initFish, checkPendingFish, decorations, saveDecorations } from './tank';
+import type { AppState, FishSnapshot, DecorationSnapshot }                                     from '../types';
+import { DEFAULT_BLOCKLIST }                                                                    from '../constants';
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
-export function fmtTime(min = 0): string {
-  if (min < 60) return `${Math.floor(min)}m`;
-  return `${Math.floor(min / 60)}h ${Math.floor(min % 60)}m`;
+/** Format seconds into a human-readable string. */
+export function fmtTime(secs = 0): string {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  if (h > 0)  return `${h}h ${m}m`;
+  if (m > 0)  return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
 export function scoreColor(s: number): string {
@@ -40,8 +45,8 @@ export function showBurst(label: string): void {
 
 // ─── Apply storage state to DOM ───────────────────────────────────────────────
 
-export function applyState({ focusScore = 70, totalFocusMinutes = 0,
-  totalDistractedMinutes = 0, isDistracting = false, currentSite = '', coins = 0 }: Partial<AppState>): void {
+export function applyState({ focusScore = 70, focusSecs = 0,
+  distractedSecs = 0, isDistracting = false, currentSite = '', coins = 0 }: Partial<AppState>): void {
 
   gameState.health = focusScore;
   if (!gameState.debugHealthLocked) {
@@ -64,8 +69,8 @@ export function applyState({ focusScore = 70, totalFocusMinutes = 0,
   else if (isDistracting) { dot.className = 'distracted'; txt.textContent = `Distracted — ${currentSite}`; }
   else                    { dot.className = 'focused';    txt.textContent = `Focused — ${currentSite}`;    }
 
-  document.getElementById('focus-time')!.textContent      = fmtTime(totalFocusMinutes);
-  document.getElementById('distracted-time')!.textContent = fmtTime(totalDistractedMinutes);
+  document.getElementById('focus-time')!.textContent      = fmtTime(focusSecs);
+  document.getElementById('distracted-time')!.textContent = fmtTime(distractedSecs);
 
   // Highlight the active time cell
   const focusCell    = document.getElementById('focus-time')!.closest<HTMLElement>('.time-cell')!;
@@ -89,9 +94,18 @@ export function applyState({ focusScore = 70, totalFocusMinutes = 0,
 export async function poll(): Promise<void> {
   try {
     const data = await chrome.storage.local.get([
-      'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes',
-      'isDistracting', 'currentSite', 'coins', 'tankFish', 'blocklist',
+      'focusScore', 'focusSecs', 'distractedSecs',
+      // legacy migration support
+      'totalFocusMinutes', 'totalDistractedMinutes',
+      'isDistracting', 'currentSite', 'coins',
+      'tankFish', 'tankDecorations', 'blocklist',
     ]);
+
+    // Seconds — with legacy fallback
+    const focusSecs      = (data['focusSecs']      as number | undefined)
+                        ?? ((data['totalFocusMinutes']      as number | undefined) ?? 0) * 60;
+    const distractedSecs = (data['distractedSecs'] as number | undefined)
+                        ?? ((data['totalDistractedMinutes'] as number | undefined) ?? 0) * 60;
 
     // Real-time focus detection — bypass stale background storage values
     const blocklist = (data['blocklist'] as string[] | undefined) ?? DEFAULT_BLOCKLIST;
@@ -108,7 +122,13 @@ export async function poll(): Promise<void> {
       }
     } catch { /* tabs API unavailable outside extension context */ }
 
-    applyState({ ...(data as Partial<AppState>), isDistracting: rtIsDistracting, currentSite: rtCurrentSite });
+    applyState({
+      ...(data as Partial<AppState>),
+      focusSecs,
+      distractedSecs,
+      isDistracting: rtIsDistracting,
+      currentSite:   rtCurrentSite,
+    });
 
     // Sync fish: remove any whose id is no longer in storage (e.g. released from settings)
     const tankFish = data['tankFish'] as FishSnapshot[] | undefined;
@@ -116,12 +136,21 @@ export async function poll(): Promise<void> {
       const storedIds = new Set(tankFish.map(f => f.id));
       let changed = false;
       for (let i = fish.length - 1; i >= 0; i--) {
-        // Skip fish still entering (enterFrames > 0): they haven't been persisted yet.
         if (fish[i].id && !fish[i].enterFrames && !storedIds.has(fish[i].id)) { fish.splice(i, 1); changed = true; }
       }
       if (changed) saveFish();
-      // Repopulate if tank was reset externally (storage has fish but canvas is empty)
       if (fish.length === 0 && tankFish.length > 0) await initFish();
+    }
+
+    // Sync decorations: remove any whose id is no longer in storage (e.g. released from settings)
+    const tankDecorations = data['tankDecorations'] as DecorationSnapshot[] | undefined;
+    if (tankDecorations) {
+      const storedDecIds = new Set(tankDecorations.map(d => d.id));
+      let decChanged = false;
+      for (let i = decorations.length - 1; i >= 0; i--) {
+        if (!storedDecIds.has(decorations[i].id)) { decorations.splice(i, 1); decChanged = true; }
+      }
+      if (decChanged) saveDecorations();
     }
 
     await checkPendingFish(showBurst);

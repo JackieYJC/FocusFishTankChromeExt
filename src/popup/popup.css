@@ -65,6 +65,26 @@ body {
 #debug-btn:hover { background: rgba(0,0,0,0.6); color: white; }
 #debug-btn.active { background: rgba(80,40,0,0.7); color: #ffaa44; border-color: rgba(255,160,60,0.5); }
 
+/* Arrange (rearrange decorations) button — bottom-right of tank */
+#arrange-btn {
+  position: absolute; bottom: 8px; right: 8px;
+  width: 28px; height: 28px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.45);
+  font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+#arrange-btn:hover { background: rgba(0,0,0,0.6); color: white; }
+#arrange-btn.active {
+  background: rgba(0,40,40,0.75);
+  color: #00e8cc;
+  border-color: rgba(0,220,190,0.55);
+  box-shadow: 0 0 6px rgba(0,220,190,0.25);
+}
+
 /* ── Pomodoro burst overlay ───────────────────────────────────────────────── */
 #pomo-burst {
   display: none;
@@ -152,19 +172,40 @@ body {
 .tab-btn:hover { color: #a0c0e8; }
 .tab-btn.active { color: #4a9aff; border-bottom-color: #4a9aff; }
 
-/* ── Shop pane ────────────────────────────────────────────────────────────── */
+/* ── Shop pane — scrollable ───────────────────────────────────────────────── */
 #shop-pane {
-  padding: 10px 14px 12px;
   background: #0c1b30;
-  display: flex; flex-direction: column; gap: 7px;
+  display: flex;
+  flex-direction: column;
 }
 #shop-pane-head {
   display: flex; align-items: center; gap: 6px;
-  padding-bottom: 4px;
+  padding: 9px 14px 8px;
   border-bottom: 1px solid #1a3050;
+  flex-shrink: 0;
 }
 #shop-pane-coins { font-size: 15px; font-weight: 700; color: #f5c842; }
-#shop-pane-grid { display: flex; flex-direction: column; gap: 6px; }
+#shop-pane-body {
+  overflow-y: auto;
+  max-height: 250px;
+  padding: 7px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #1a3050 #0a1525;
+}
+#shop-pane-body::-webkit-scrollbar { width: 5px; }
+#shop-pane-body::-webkit-scrollbar-track { background: #0a1525; }
+#shop-pane-body::-webkit-scrollbar-thumb { background: #1a3050; border-radius: 3px; }
+
+#shop-pane-grid, #shop-dec-grid { display: flex; flex-direction: column; gap: 6px; }
+
+.shop-section-label {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: #3a6080; padding: 4px 0 2px;
+}
 .spc {
   display: flex; align-items: center; gap: 10px;
   padding: 5px 10px; border-radius: 8px;
@@ -172,19 +213,19 @@ body {
   transition: opacity 0.2s;
 }
 .spc.unaffordable { opacity: 0.4; }
-.spc-canvas { border-radius: 5px; flex-shrink: 0; }
+.spc-canvas, .spc-dec-canvas { border-radius: 5px; flex-shrink: 0; }
 .spc-info { flex: 1; }
 .spc-name { display: block; font-size: 13px; font-weight: 600; }
 .spc-desc { display: block; font-size: 11px; color: #4a6a8a; margin-top: 1px; }
-.spc-btn {
+.spc-btn, .spc-dec-btn {
   padding: 5px 11px;
   background: #2a1e00; color: #f5c842;
   border: 1px solid #7a5a10; border-radius: 6px;
   cursor: pointer; font-size: 12px; font-weight: 600;
   white-space: nowrap; transition: background 0.15s; flex-shrink: 0;
 }
-.spc-btn:hover:not(:disabled) { background: #3d2e00; }
-.spc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.spc-btn:hover:not(:disabled), .spc-dec-btn:hover:not(:disabled) { background: #3d2e00; }
+.spc-btn:disabled, .spc-dec-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .spc-hint { font-size: 11px; color: #4a6a8a; text-align: center; margin-top: 2px; }
 
 /* ── Panel ────────────────────────────────────────────────────────────────── */
@@ -193,8 +234,8 @@ body {
 #panel[hidden], #shop-pane[hidden] { display: none !important; }
 
 #panel {
-  padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 8px;
   background: #0c1b30;
   position: relative;
 }
@@ -231,20 +272,39 @@ body {
 }
 .time-cell {
   flex: 1; display: flex; flex-direction: column;
-  align-items: center; padding: 8px 12px;
+  align-items: center; padding: 7px 12px;
 }
 .divider { width: 1px; height: 36px; background: #1a3050; }
 .label {
   font-size: 11px; text-transform: uppercase;
   letter-spacing: 0.6px; color: #5a7aaa; margin-bottom: 3px;
 }
-.time-val { font-size: 18px; font-weight: 700; }
+.time-val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .time-cell.state-focused    { background: rgba(76,175,80,0.13);  border-radius: 8px; }
 .time-cell.state-distracted { background: rgba(244,67,54,0.13); border-radius: 8px; }
 .time-cell.state-focused    .label { color: #4caf50; }
 .time-cell.state-distracted .label { color: #f44336; }
 .time-cell.state-focused    .time-val { color: #6dd470; }
 .time-cell.state-distracted .time-val { color: #f77; }
+
+/* ── Food row ─────────────────────────────────────────────────────────────── */
+#food-row {
+  display: flex; align-items: center; gap: 8px;
+  background: #0a1525; border-radius: 8px; padding: 6px 12px;
+}
+.food-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+.food-lbl  { white-space: nowrap; }
+#food-bar-wrap {
+  flex: 1; height: 6px;
+  background: #162740; border-radius: 4px; overflow: hidden;
+}
+#food-bar {
+  height: 100%; border-radius: 4px;
+  width: 100%; background: #4caf50;
+  transition: width 0.4s ease, background 0.4s ease;
+}
+#food-value { font-size: 12px; font-weight: 700; color: #a8c4e0; white-space: nowrap; }
+.food-next  { font-size: 10px; color: #4a6a8a; white-space: nowrap; min-width: 42px; text-align: right; }
 
 /* ── Pomodoro row ────────────────────────────────────────────────────────── */
 #pomo-row {
@@ -279,14 +339,6 @@ body {
   font-size: 11px; text-transform: uppercase;
   letter-spacing: 0.6px; color: #8a6a20; flex: 1;
 }
-#shop-btn {
-  padding: 4px 14px;
-  background: #2a1e00; color: #f5c842;
-  border: 1px solid #7a5a10; border-radius: 6px;
-  cursor: pointer; font-size: 12px; font-weight: 600;
-  letter-spacing: 0.3px; transition: background 0.2s;
-}
-#shop-btn:hover { background: #3d2e00; color: #ffd84a; }
 
 /* ── Coin float animation ─────────────────────────────────────────────────── */
 .coin-float {
@@ -311,4 +363,3 @@ body {
 }
 #daily-btn:hover:not(:disabled) { background: #2e1e00; }
 #daily-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-

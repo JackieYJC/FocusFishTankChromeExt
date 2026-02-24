@@ -1,7 +1,9 @@
 // ─── Shared domain types ────────────────────────────────────────────────────
 
-export type FishType  = 'basic' | 'long' | 'round';
+export type FishType  = 'basic' | 'long' | 'round' | 'angel' | 'betta';
 export type FishStage = 'fry' | 'juvenile' | 'adult' | 'dead';
+
+export type DecorationType = 'kelp' | 'coral_fan' | 'coral_branch' | 'anemone';
 
 /** Serialisable fish snapshot — what gets written to chrome.storage.local */
 export interface FishSnapshot {
@@ -19,6 +21,17 @@ export interface FishSnapshot {
   diedAt?:     number;   // Date.now() when fish faded out (graveyard only)
 }
 
+/** Serialisable decoration snapshot — what gets written to chrome.storage.local */
+export interface DecorationSnapshot {
+  id:          string;
+  type:        DecorationType;
+  x:           number;   // canvas pixel x (0–360)
+  y:           number;   // canvas pixel y, bottom region (≈155–240)
+  hue:         number;
+  scale:       number;   // size multiplier, typically 0.85–1.15
+  releasedAt?: number;
+}
+
 export interface WorkHours {
   enabled: boolean;
   start:   string;   // "HH:MM"
@@ -28,10 +41,10 @@ export interface WorkHours {
 
 /** Subset of chrome.storage.local used by applyState / poll */
 export interface AppState {
-  focusScore:             number;
-  totalFocusMinutes:      number;
-  totalDistractedMinutes: number;
-  isDistracting:          boolean;
-  currentSite:            string;
-  coins:                  number;
+  focusScore:     number;
+  focusSecs:      number;
+  distractedSecs: number;
+  isDistracting:  boolean;
+  currentSite:    string;
+  coins:          number;
 }

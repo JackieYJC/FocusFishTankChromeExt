@@ -9,14 +9,15 @@ const { TICK_SECS, DECAY, GAIN, COIN_RATE } = GAME_BALANCE;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({
-    focusScore:              70,
-    totalFocusMinutes:       0,
-    totalDistractedMinutes:  0,
-    isDistracting:           false,
-    currentSite:             '',
-    blocklist:               DEFAULT_BLOCKLIST,
-    workHours:               DEFAULT_WORK_HOURS,
-    coins:                   0,
+    focusScore:      70,
+    focusSecs:       0,
+    distractedSecs:  0,
+    isDistracting:   false,
+    currentSite:     '',
+    blocklist:       DEFAULT_BLOCKLIST,
+    workHours:       DEFAULT_WORK_HOURS,
+    coins:           0,
+    lastDailyClaim:  '',   // date string "YYYY-MM-DD"; empty = never claimed
   });
   scheduleTick();
 });
@@ -60,8 +61,10 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   if (url.startsWith('chrome://') || url.startsWith('chrome-extension://')) return;
 
   const data = await chrome.storage.local.get([
-    'focusScore', 'totalFocusMinutes', 'totalDistractedMinutes',
-    'blocklist',  'workHours',          'coins',
+    'focusScore', 'focusSecs', 'distractedSecs',
+    // legacy keys — migrate on first tick if present
+    'totalFocusMinutes', 'totalDistractedMinutes',
+    'blocklist', 'workHours', 'coins',
   ]);
 
   const blocklist = (data['blocklist'] as string[])    ?? DEFAULT_BLOCKLIST;
@@ -72,10 +75,16 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const distracting = isDistracting(url, blocklist);
   const site        = getHostname(url);
 
-  const focusScore             = (data['focusScore']             as number) ?? 70;
-  const totalFocusMinutes      = (data['totalFocusMinutes']      as number) ?? 0;
-  const totalDistractedMinutes = (data['totalDistractedMinutes'] as number) ?? 0;
-  const coins                  = (data['coins']                  as number) ?? 0;
+  const focusScore = (data['focusScore'] as number) ?? 70;
+  const coins      = (data['coins']      as number) ?? 0;
+
+  // Migrate legacy minute counters to seconds on first tick that finds them
+  const rawFocusSecs      = data['focusSecs']      as number | undefined;
+  const rawDistractedSecs = data['distractedSecs'] as number | undefined;
+  const legacyFocusMin    = data['totalFocusMinutes']      as number | undefined;
+  const legacyDistMin     = data['totalDistractedMinutes'] as number | undefined;
+  const focusSecs         = rawFocusSecs      ?? ((legacyFocusMin   ?? 0) * 60);
+  const distractedSecs    = rawDistractedSecs ?? ((legacyDistMin    ?? 0) * 60);
 
   const newScore = distracting
     ? Math.max(0,   focusScore - DECAY)
@@ -85,11 +94,11 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const newCoins = Math.round((coins + coinGain) * 1000) / 1000;
 
   await chrome.storage.local.set({
-    focusScore:              newScore,
-    totalFocusMinutes:       totalFocusMinutes      + (distracting ? 0 : TICK_SECS / 60),
-    totalDistractedMinutes:  totalDistractedMinutes + (distracting ? TICK_SECS / 60 : 0),
-    isDistracting:           distracting,
-    currentSite:             site,
-    coins:                   newCoins,
+    focusScore:     newScore,
+    focusSecs:      focusSecs      + (distracting ? 0 : TICK_SECS),
+    distractedSecs: distractedSecs + (distracting ? TICK_SECS : 0),
+    isDistracting:  distracting,
+    currentSite:    site,
+    coins:          newCoins,
   });
 });

@@ -1,8 +1,8 @@
-// ─── Tank — Fish class, scene objects, render loop ────────────────────────────
+// ─── Tank — Fish class, Decoration class, scene objects, render loop ──────────
 
-import { drawFry, drawLiveFish, drawDeadFish } from '../fish-renderer';
-import { GAME_BALANCE, STAGE_SIZE_FACTORS }    from '../constants';
-import type { FishType, FishStage, FishSnapshot } from '../types';
+import { drawFry, drawLiveFish, drawDeadFish, drawDecoration } from '../fish-renderer';
+import { GAME_BALANCE, STAGE_SIZE_FACTORS, DEC_HEALTH_PER, MAX_DEC_BONUS } from '../constants';
+import type { FishType, FishStage, FishSnapshot, DecorationType, DecorationSnapshot } from '../types';
 
 const { BASE_GROWTH_RATE, FOOD_GROWTH_CAP, FOOD_GROWTH_BONUS } = GAME_BALANCE;
 
@@ -18,6 +18,10 @@ export const gameState = {
   coinAccrualMult:   1,      // debug multiplier
   growthSpeed:       1,      // debug multiplier
   lastCoins:         null as number | null,
+  rearrangeMode:     false,
+  draggingDecId:     null as string | null,
+  foodSupply:        15,
+  foodLastRefill:    0,      // ms timestamp; 0 = uninitialised
 };
 
 // ─── Canvas setup ─────────────────────────────────────────────────────────────
@@ -208,6 +212,42 @@ export class Fish {
   }
 }
 
+// ─── Decoration ───────────────────────────────────────────────────────────────
+
+export class Decoration {
+  id:    string;
+  type:  DecorationType;
+  x:     number;
+  y:     number;
+  hue:   number;
+  scale: number;
+  phase: number;
+
+  constructor(snap: DecorationSnapshot) {
+    this.id    = snap.id;
+    this.type  = snap.type;
+    this.x     = snap.x;
+    this.y     = snap.y;
+    this.hue   = snap.hue;
+    this.scale = snap.scale;
+    this.phase = Math.random() * Math.PI * 2;
+  }
+
+  update(): void { this.phase += 0.018; }
+
+  hitTest(px: number, py: number, r: number): boolean {
+    return Math.hypot(px - this.x, py - this.y) < r;
+  }
+
+  draw(_ctx: CanvasRenderingContext2D): void {
+    drawDecoration(_ctx, this.type, this.x, this.y, this.hue, this.scale, this.phase);
+  }
+
+  toSnapshot(): DecorationSnapshot {
+    return { id: this.id, type: this.type, x: this.x, y: this.y, hue: this.hue, scale: this.scale };
+  }
+}
+
 // ─── Bubble ───────────────────────────────────────────────────────────────────
 
 class Bubble {
@@ -363,6 +403,7 @@ export const fish:        Fish[]       = [];
 export const foodPellets: FoodPellet[] = [];
 export const ripples:     Ripple[]     = [];
 export const sparkles:    Sparkle[]   = [];
+export const decorations: Decoration[] = [];
 export const bubbles  = Array.from({ length: 14 }, () => new Bubble(W, H));
 export const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
 
@@ -396,6 +437,7 @@ export async function archiveToGraveyard(f: Fish): Promise<void> {
 }
 
 export async function initFish(): Promise<void> {
+  const allTypes: FishType[] = ['basic', 'long', 'round', 'angel', 'betta'];
   try {
     const { tankFish } = await chrome.storage.local.get('tankFish') as { tankFish?: FishSnapshot[] };
     if (tankFish && tankFish.length > 0) {
@@ -408,9 +450,8 @@ export async function initFish(): Promise<void> {
         fish.push(nf);
       }
     } else {
-      const types: FishType[] = ['basic', 'long', 'round'];
       for (let i = 0; i < 2; i++) {
-        const type = types[Math.floor(Math.random() * types.length)];
+        const type = allTypes[Math.floor(Math.random() * allTypes.length)];
         const maxS = 17 + Math.floor(Math.random() * 6);
         const m    = Math.round(maxS * 0.38) * 2;
         fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: Math.floor(Math.random() * 360), type, stage: 'fry' }));
@@ -419,7 +460,7 @@ export async function initFish(): Promise<void> {
     }
   } catch {
     for (let i = 0; i < 2; i++) {
-      const type = (['basic', 'long', 'round'] as FishType[])[Math.floor(Math.random() * 3)];
+      const type = allTypes[Math.floor(Math.random() * allTypes.length)];
       const maxS = 17 + Math.floor(Math.random() * 6);
       const m    = Math.round(maxS * 0.38) * 2;
       fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: Math.floor(Math.random() * 360), type, stage: 'fry' }));
@@ -427,10 +468,31 @@ export async function initFish(): Promise<void> {
   }
 }
 
+// ─── Decoration persistence ───────────────────────────────────────────────────
+
+let saveDecTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function saveDecorations(): void {
+  if (saveDecTimer) clearTimeout(saveDecTimer);
+  saveDecTimer = setTimeout(() => {
+    const snapshot = decorations.map(d => d.toSnapshot());
+    chrome.storage.local.set({ tankDecorations: snapshot }).catch(() => {});
+  }, 250);
+}
+
+export async function initDecorations(): Promise<void> {
+  try {
+    const { tankDecorations = [] } = await chrome.storage.local.get('tankDecorations') as { tankDecorations?: DecorationSnapshot[] };
+    for (const snap of tankDecorations) {
+      decorations.push(new Decoration(snap));
+    }
+  } catch { /* ignore */ }
+}
+
 // ─── Fish spawning ────────────────────────────────────────────────────────────
 
 export function spawnRewardFish(): void {
-  const types: FishType[] = ['basic', 'long', 'round'];
+  const types: FishType[] = ['basic', 'long', 'round', 'angel', 'betta'];
   const type = types[Math.floor(Math.random() * types.length)];
   const hue  = Math.floor(Math.random() * 360);
   const maxS = 17 + Math.floor(Math.random() * 6);
@@ -444,6 +506,15 @@ export function spawnDropFish(type: FishType, hue: number): void {
   const maxS = 17 + Math.floor(Math.random() * 6);
   fish.push(new Fish({ x: 40 + Math.random() * (W - 80), y: -maxS, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry', entering: true }));
   saveFish();
+}
+
+export function spawnDropDecoration(type: DecorationType, hue: number): void {
+  const id    = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const x     = 40 + Math.random() * (W - 80);
+  const y     = H - 20;                          // sit on the sand
+  const scale = 0.85 + Math.random() * 0.30;     // slight size variation
+  decorations.push(new Decoration({ id, type, x, y, hue, scale }));
+  saveDecorations();
 }
 
 export async function checkPendingFish(showBurst: (msg: string) => void): Promise<void> {
@@ -468,9 +539,8 @@ const MOLD_PATCHES = [
   { x: 210, rx: 24, ry:  7 }, { x: 265, rx: 30, ry: 10 }, { x: 330, rx: 35, ry:  9 },
 ];
 
-function drawWater(): void {
-  const health = gameState.tankHealth;
-  const dark   = (1 - health / 100) * 0.55;
+function drawWater(displayHealth: number): void {
+  const dark   = (1 - displayHealth / 100) * 0.55;
 
   // ── Background gradient ─────────────────────────────────────────────────────
   const grad = ctx.createLinearGradient(0, 0, 0, H);
@@ -480,8 +550,8 @@ function drawWater(): void {
   ctx.fillRect(0, 0, W, H);
 
   // ── Light rays from above (scale with health) ───────────────────────────────
-  if (health > 45) {
-    const power = (health - 45) / 55;         // 0 → 1 as health goes 45 → 100
+  if (displayHealth > 45) {
+    const power = (displayHealth - 45) / 55;
     ctx.save();
     ctx.globalAlpha = power * 0.20;
     for (let i = 0; i < 5; i++) {
@@ -495,8 +565,8 @@ function drawWater(): void {
     ctx.restore();
 
     // Surface shimmer at high health
-    if (health > 65) {
-      const shimmer = (health - 65) / 35;
+    if (displayHealth > 65) {
+      const shimmer = (displayHealth - 65) / 35;
       ctx.save();
       const sg = ctx.createLinearGradient(0, 0, 0, 20);
       sg.addColorStop(0, `rgba(190,235,255,${shimmer * 0.28})`);
@@ -514,17 +584,15 @@ function drawWater(): void {
   ctx.fillRect(0, H - 20, W, 20);
 
   // ── Mold patches at low health ──────────────────────────────────────────────
-  if (health < 55) {
-    const t = (55 - health) / 55;          // 0 → 1 as health 55 → 0
+  if (displayHealth < 55) {
+    const t = (55 - displayHealth) / 55;
     ctx.save();
-    // Blobs along the sand line
     for (const p of MOLD_PATCHES) {
       const ry = p.ry * (0.4 + t * 0.6);
       ctx.beginPath();
       ctx.ellipse(p.x, H - 20, p.rx * (0.3 + t * 0.7), ry, 0, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(28,55,18,${t * 0.72})`;
       ctx.fill();
-      // Lighter highlight on each blob
       ctx.beginPath();
       ctx.ellipse(p.x - 4, H - 20 - ry * 0.4, p.rx * 0.3 * t, ry * 0.35 * t, -0.3, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(55,90,30,${t * 0.45})`;
@@ -546,23 +614,47 @@ function drawWater(): void {
   }
 
   // ── Dark murky overlay at very low health ───────────────────────────────────
-  if (health < 40) {
-    ctx.fillStyle = `rgba(60,15,0,${(40 - health) / 130})`;
+  if (displayHealth < 40) {
+    ctx.fillStyle = `rgba(60,15,0,${(40 - displayHealth) / 130})`;
     ctx.fillRect(0, 0, W, H);
   }
 }
 
 export function render(): void {
   ctx.clearRect(0, 0, W, H);
-  drawWater();
-  seaweeds.forEach(s => { s.update(); s.draw(ctx, gameState.tankHealth); });
+
+  // Decoration bonus boosts water visuals (not fish HP)
+  const decBonus      = Math.min(MAX_DEC_BONUS, decorations.length * DEC_HEALTH_PER);
+  const displayHealth = Math.min(100, gameState.tankHealth + decBonus);
+
+  drawWater(displayHealth);
+  seaweeds.forEach(s => { s.update(); s.draw(ctx, displayHealth); });
   bubbles.forEach(b  => { b.update(); b.draw(ctx); });
+
+  // Decorations — drawn between seaweeds and fish (on the sand)
+  for (const d of decorations) {
+    d.update();
+    d.draw(ctx);
+    // Rearrange-mode highlight ring
+    if (gameState.rearrangeMode) {
+      const isGrabbed = d.id === gameState.draggingDecId;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(d.x, d.y - 10, 16, 0, Math.PI * 2);
+      ctx.strokeStyle = isGrabbed ? 'rgba(0,255,220,0.9)' : 'rgba(0,200,180,0.45)';
+      ctx.lineWidth   = isGrabbed ? 2.5 : 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
 
   for (const p of foodPellets) { p.update(); p.draw(ctx); }
   for (const r of ripples)     { r.update(); r.draw(ctx); }
 
   // Sparkles — spawn randomly when tank is healthy (>70), rate scales with surplus health
-  if (gameState.tankHealth > 70 && Math.random() < (gameState.tankHealth - 70) / 30 * 0.12) {
+  if (displayHealth > 70 && Math.random() < (displayHealth - 70) / 30 * 0.12) {
     sparkles.push(new Sparkle(W, H));
   }
   for (const sp of sparkles) { sp.update(); sp.draw(ctx); }
