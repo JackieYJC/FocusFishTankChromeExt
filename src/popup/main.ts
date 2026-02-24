@@ -1,6 +1,6 @@
 // ─── Popup entry point ─────────────────────────────────────────────────────────
 
-import { canvas, fish, foodPellets, ripples, render, initFish, initDecorations, decorations, gameState, saveDecorations, W, H } from './tank';
+import { canvas, fish, foodPellets, ripples, render, initFish, initDecorations, decorations, gameState, saveDecorations, Decoration, W, H } from './tank';
 import { FoodPellet, Ripple }  from './tank';
 import { poll }                from './game-state';
 import { initPomodoro }        from './pomodoro';
@@ -136,7 +136,7 @@ canvas.addEventListener('click', e => {
 
 // ─── Drag-and-drop for rearrange mode ────────────────────────────────────────
 
-let draggingDec: ReturnType<typeof decorations['find']> = undefined;
+let draggingDec: Decoration | undefined = undefined;
 
 canvas.addEventListener('mousedown', e => {
   if (!gameState.rearrangeMode) return;

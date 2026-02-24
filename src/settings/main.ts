@@ -1,6 +1,6 @@
 // ─── Settings page ─────────────────────────────────────────────────────────────
 
-import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, DEFAULT_FISH_SIZES } from '../constants';
+import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS } from '../constants';
 import { drawFishPreview, drawDecorationPreview }                    from '../fish-renderer';
 import type { FishSnapshot, FishType, DecorationSnapshot, DecorationType } from '../types';
 
