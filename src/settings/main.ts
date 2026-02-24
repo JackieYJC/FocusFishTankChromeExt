@@ -355,7 +355,7 @@ document.getElementById('feedback-submit')!.addEventListener('click', () => {
   const full    = `${from}${body}`;
   const subject = encodeURIComponent('Focus Fish Tank — Feedback');
   const encoded = encodeURIComponent(full);
-  window.open(`mailto:jackie19970410@gmail.com?subject=${subject}&body=${encoded}`);
+  window.open(`mailto:jiachen97@g.ucla.edu?subject=${subject}&body=${encoded}`);
 });
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
