@@ -38,3 +38,6 @@ CLAUDE.md
 # Package manager locks (keep one, delete the other if you prefer)
 # yarn.lock
 # package-lock.json
+
+# dist
+*.zip
