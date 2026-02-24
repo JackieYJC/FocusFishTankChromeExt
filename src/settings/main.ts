@@ -342,6 +342,22 @@ function renderReleasedDecList(arr: DecorationSnapshot[]): void {
   }
 }
 
+// ─── Feedback page ────────────────────────────────────────────────────────────
+
+document.getElementById('feedback-submit')!.addEventListener('click', () => {
+  const name = (document.getElementById('feedback-name') as HTMLInputElement).value.trim();
+  const body = (document.getElementById('feedback-body') as HTMLTextAreaElement).value.trim();
+  if (!body) {
+    (document.getElementById('feedback-body') as HTMLTextAreaElement).focus();
+    return;
+  }
+  const from    = name ? `From: ${name}\n\n` : '';
+  const full    = `${from}${body}`;
+  const subject = encodeURIComponent('Focus Fish Tank — Feedback');
+  const encoded = encodeURIComponent(full);
+  window.open(`mailto:jackie19970410@gmail.com?subject=${subject}&body=${encoded}`);
+});
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;

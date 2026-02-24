@@ -17,6 +17,8 @@
       <button class="nav-btn" data-page="graveyard">Graveyard</button>
       <button class="nav-btn" data-page="decorations">My Decorations</button>
       <button class="nav-btn" data-page="released-dec">Released Plants</button>
+      <button class="nav-btn" data-page="feedback">💬 Feedback</button>
+      <a id="bmc-btn" href="https://buymeacoffee.com/alexyjc" target="_blank" rel="noopener">☕ Buy me a coffee</a>
     </nav>
 
     <main class="settings-main">
@@ -142,6 +144,24 @@
         <h2 class="page-title">Released Plants</h2>
         <p class="page-desc">Plants and decorations you've set free back to the ocean.</p>
         <div id="released-dec-list"></div>
+      </section>
+
+      <!-- Feedback page -->
+      <section id="page-feedback" hidden>
+        <h2 class="page-title">Send Feedback</h2>
+        <p class="page-desc">Found a bug? Have a suggestion? I'd love to hear from you.</p>
+        <section class="card">
+          <div class="field">
+            <span class="field-label">Your name (optional)</span>
+            <input type="text" id="feedback-name" placeholder="Anonymous">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <span class="field-label">Message</span>
+            <textarea id="feedback-body" rows="6" placeholder="Tell me what's on your mind…"></textarea>
+          </div>
+        </section>
+        <button id="feedback-submit">Send via Email</button>
+        <p class="feedback-note">Opens your email client with a pre-filled message to the developer.</p>
       </section>
 
     </main>
