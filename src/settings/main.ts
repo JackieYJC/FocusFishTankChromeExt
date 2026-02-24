@@ -1,8 +1,18 @@
 // ─── Settings page ─────────────────────────────────────────────────────────────
 
 import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, DEFAULT_FISH_SIZES } from '../constants';
-import { drawFishPreview }                                           from '../fish-renderer';
-import type { FishSnapshot, FishType }                               from '../types';
+import { drawFishPreview, drawDecorationPreview }                    from '../fish-renderer';
+import type { FishSnapshot, FishType, DecorationSnapshot, DecorationType } from '../types';
+
+// ─── Fish type label map ───────────────────────────────────────────────────────
+
+const FISH_LABEL: Record<string, string> = {
+  basic: 'Oval', long: 'Tetra', round: 'Puffer', angel: 'Angelfish', betta: 'Betta',
+};
+
+const DEC_LABEL: Record<string, string> = {
+  kelp: 'Sea Kelp', coral_fan: 'Fan Coral', coral_branch: 'Branch Coral', anemone: 'Anemone',
+};
 
 // ─── Sidebar navigation ───────────────────────────────────────────────────────
 
@@ -13,9 +23,10 @@ document.querySelectorAll<HTMLElement>('.nav-btn').forEach(btn => {
     document.querySelectorAll<HTMLElement>('.settings-main > section').forEach(s => (s.hidden = true));
     const page = btn.dataset['page'] ?? '';
     document.getElementById(`page-${page}`)!.hidden = false;
-    if (page === 'fish')      loadFishPage();
-    if (page === 'released')  loadReleasedPage();
-    if (page === 'graveyard') loadGraveyardPage();
+    if (page === 'fish')        loadFishPage();
+    if (page === 'released')    loadReleasedPage();
+    if (page === 'graveyard')   loadGraveyardPage();
+    if (page === 'decorations') loadDecorationsPage();
   });
 });
 
@@ -123,7 +134,7 @@ function buildFishCard(f: FishSnapshot): HTMLElement {
 
   const meta    = document.createElement('div');
   meta.className = 'fish-meta';
-  const typeLabel = ({ basic: 'Oval', long: 'Tetra', round: 'Puffer' } as Record<string, string>)[f.type] ?? f.type;
+  const typeLabel = FISH_LABEL[f.type] ?? f.type;
   const hpPct     = f.stage === 'dead' ? 0 : Math.round(f.health);
   const hpColor   = f.stage === 'dead' ? '#555' : `hsl(${hpPct * 1.2},80%,45%)`;
   const ageMin    = f.bornAt ? Math.floor((Date.now() - f.bornAt) / 60000) : null;
@@ -182,7 +193,7 @@ function renderReleasedList(arr: FishSnapshot[]): void {
 
     const meta    = document.createElement('div');
     meta.className = 'fish-meta';
-    const typeLabel = ({ basic: 'Oval', long: 'Tetra', round: 'Puffer' } as Record<string, string>)[f.type] ?? f.type;
+    const typeLabel = FISH_LABEL[f.type] ?? f.type;
     const dateStr   = f.releasedAt ? new Date(f.releasedAt).toLocaleDateString() : 'Unknown date';
     meta.innerHTML  = `
       <div class="fish-name">${typeLabel}</div>
@@ -213,7 +224,7 @@ async function loadGraveyardPage(): Promise<void> {
 
     const meta = document.createElement('div');
     meta.className = 'fish-meta';
-    const typeLabel = ({ basic: 'Oval', long: 'Tetra', round: 'Puffer' } as Record<string, string>)[f.type] ?? f.type;
+    const typeLabel = FISH_LABEL[f.type] ?? f.type;
     const diedStr   = f.diedAt  ? new Date(f.diedAt).toLocaleDateString()  : 'Unknown date';
     const ageMin    = (f.bornAt && f.diedAt) ? Math.floor((f.diedAt - f.bornAt) / 60000) : null;
     meta.innerHTML  = `
@@ -223,6 +234,65 @@ async function loadGraveyardPage(): Promise<void> {
     card.appendChild(meta);
     container.appendChild(card);
   }
+}
+
+// ─── Decorations page ─────────────────────────────────────────────────────────
+
+async function loadDecorationsPage(): Promise<void> {
+  const { tankDecorations = [] } = await chrome.storage.local.get('tankDecorations') as { tankDecorations?: DecorationSnapshot[] };
+  renderDecorationList(tankDecorations);
+}
+
+function renderDecorationList(decs: DecorationSnapshot[]): void {
+  const container = document.getElementById('decoration-list')!;
+  container.innerHTML = '';
+  if (!decs.length) {
+    container.innerHTML = '<p class="muted-text">No decorations in your tank. Buy some from the Shop!</p>';
+    return;
+  }
+  decs.forEach(d => container.appendChild(buildDecorationCard(d)));
+}
+
+function buildDecorationCard(d: DecorationSnapshot): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'decoration-card';
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'dec-mini-preview';
+  canvas.width = 70; canvas.height = 50;
+  card.appendChild(canvas);
+  drawDecorationPreview(canvas, d.type, d.hue);
+
+  const meta = document.createElement('div');
+  meta.className = 'dec-meta';
+  meta.innerHTML = `
+    <div class="dec-name">${DEC_LABEL[d.type] ?? d.type}</div>
+    <div class="dec-type">${d.type.replace('_', ' ')}</div>
+  `;
+  card.appendChild(meta);
+
+  const btn = document.createElement('button');
+  btn.className   = 'release-btn';
+  btn.textContent = 'Release';
+  btn.addEventListener('click', () => releaseDecoration(d.id));
+  card.appendChild(btn);
+
+  return card;
+}
+
+async function releaseDecoration(id: string): Promise<void> {
+  const { tankDecorations = [], releasedDecorations = [] } =
+    await chrome.storage.local.get(['tankDecorations', 'releasedDecorations']) as {
+      tankDecorations?: DecorationSnapshot[]; releasedDecorations?: DecorationSnapshot[];
+    };
+  const idx = tankDecorations.findIndex(d => d.id === id);
+  if (idx === -1) return;
+  const [released] = tankDecorations.splice(idx, 1);
+  released.releasedAt = Date.now();
+  releasedDecorations.unshift(released);
+  await chrome.storage.local.set({ tankDecorations, releasedDecorations });
+  loadDecorationsPage();
+  toast('Decoration returned to the ocean!');
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -241,12 +311,12 @@ function toast(msg = 'Saved ✓'): void {
 
 document.getElementById('reset-tank-btn')!.addEventListener('click', async () => {
   const confirmed = confirm(
-    'Reset Tank — this will permanently delete all your fish, coins, and session stats.\n\nAre you sure?'
+    'Reset Tank — this will permanently delete all your fish, decorations, coins, and session stats.\n\nAre you sure?'
   );
   if (!confirmed) return;
 
   // Start with 2 random fry so there's life in the tank right away
-  const allTypes: FishType[] = ['basic', 'long', 'round'];
+  const allTypes: FishType[] = ['basic', 'long', 'round', 'angel', 'betta'];
   const now = Date.now();
   const defaultFish: FishSnapshot[] = Array.from({ length: 2 }, (_, i) => {
     const type = allTypes[Math.floor(Math.random() * allTypes.length)];
@@ -266,8 +336,10 @@ document.getElementById('reset-tank-btn')!.addEventListener('click', async () =>
 
   await chrome.storage.local.set({
     tankFish: defaultFish, releasedFish: [], graveyardFish: [], pendingFish: [],
-    coins: 0, focusScore: 70, totalFocusMinutes: 0, totalDistractedMinutes: 0,
-    lastDailyClaim: 0,
+    tankDecorations: [], releasedDecorations: [],
+    coins: 0, focusScore: 70, focusSecs: 0, distractedSecs: 0,
+    lastDailyClaim: '',
+    foodSupply: 15, foodLastRefill: now,
   });
   toast('Tank reset. Two little fry are ready to grow!');
 });

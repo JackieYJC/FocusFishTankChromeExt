@@ -217,6 +217,28 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
 .died-date  { font-size: 11px; color: #7a5a7a; margin-top: 2px; }
 .fish-age   { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
+/* ── Decoration cards (reuse fish card pattern) ──────────────────────────── */
+.decoration-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card); margin-bottom: 8px;
+}
+
+.dec-mini-preview { width: 70px; height: 50px; border-radius: 6px; flex-shrink: 0; }
+
+.dec-meta { flex: 1; }
+.dec-meta .dec-name  { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.dec-meta .dec-type  { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+
+.released-dec-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card); margin-bottom: 8px;
+  opacity: 0.65;
+}
+
 /* ── Danger Zone ──────────────────────────────────────────────────────────── */
 .danger-card { border-color: rgba(220,60,60,0.3); }
 .danger-card h2 { color: var(--danger); }
