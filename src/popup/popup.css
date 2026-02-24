@@ -199,7 +199,7 @@ body {
 #shop-pane-body::-webkit-scrollbar-track { background: #0a1525; }
 #shop-pane-body::-webkit-scrollbar-thumb { background: #1a3050; border-radius: 3px; }
 
-#shop-pane-grid, #shop-dec-grid { display: flex; flex-direction: column; gap: 6px; }
+#shop-pane-grid, #shop-dec-grid, #shop-bg-grid { display: flex; flex-direction: column; gap: 6px; }
 
 .shop-section-label {
   font-size: 10px; font-weight: 700;
@@ -213,7 +213,7 @@ body {
   transition: opacity 0.2s;
 }
 .spc.unaffordable { opacity: 0.4; }
-.spc-canvas, .spc-dec-canvas { border-radius: 5px; flex-shrink: 0; }
+.spc-canvas, .spc-dec-canvas, .spc-bg-canvas { border-radius: 5px; flex-shrink: 0; }
 .spc-info { flex: 1; }
 .spc-name { display: block; font-size: 13px; font-weight: 600; }
 .spc-desc { display: block; font-size: 11px; color: #4a6a8a; margin-top: 1px; }
@@ -227,6 +227,26 @@ body {
 .spc-btn:hover:not(:disabled), .spc-dec-btn:hover:not(:disabled) { background: #3d2e00; }
 .spc-btn:disabled, .spc-dec-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .spc-hint { font-size: 11px; color: #4a6a8a; text-align: center; margin-top: 2px; }
+
+.spc-bg-btn {
+  padding: 5px 11px;
+  background: #2a1e00; color: #f5c842;
+  border: 1px solid #7a5a10; border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-weight: 600;
+  white-space: nowrap; transition: background 0.15s; flex-shrink: 0;
+}
+.spc-bg-btn:hover:not(:disabled) { background: #3d2e00; }
+.spc-bg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.spc-bg-btn.equip-btn {
+  background: #0a1a2a; color: #6aacdc; border-color: #2a5a8a;
+}
+.spc-bg-btn.equip-btn:hover:not(:disabled) { background: #0f2030; }
+.bg-equipped-label {
+  padding: 5px 11px;
+  background: #0a2a10; color: #6adc8a;
+  border: 1px solid #2a6a3a; border-radius: 6px;
+  font-size: 12px; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+}
 
 /* ── Panel ────────────────────────────────────────────────────────────────── */
 /* display:flex on #panel and #shop-pane beats the UA [hidden]{display:none},
@@ -363,3 +383,15 @@ body {
 }
 #daily-btn:hover:not(:disabled) { background: #2e1e00; }
 #daily-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Popup toast ───────────────────────────────────────────────────────────── */
+#popup-toast {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  background: #0e2840; color: #8acce8;
+  border: 1px solid #1a4a6a; border-radius: 8px;
+  padding: 8px 14px; font-size: 11px; max-width: 300px;
+  text-align: center; line-height: 1.4;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s; z-index: 100;
+}
+#popup-toast.show { opacity: 1; }

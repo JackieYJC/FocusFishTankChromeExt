@@ -2,7 +2,7 @@
 
 import { drawFry, drawLiveFish, drawDeadFish, drawDecoration } from '../fish-renderer';
 import { GAME_BALANCE, STAGE_SIZE_FACTORS, DEC_HEALTH_PER, MAX_DEC_BONUS } from '../constants';
-import type { FishType, FishStage, FishSnapshot, DecorationType, DecorationSnapshot } from '../types';
+import type { FishType, FishStage, FishSnapshot, DecorationType, DecorationSnapshot, BackgroundType } from '../types';
 
 const { BASE_GROWTH_RATE, FOOD_GROWTH_CAP, FOOD_GROWTH_BONUS } = GAME_BALANCE;
 
@@ -20,6 +20,7 @@ export const gameState = {
   lastCoins:         null as number | null,
   rearrangeMode:     false,
   draggingDecId:     null as string | null,
+  selectedBackground: 'default' as BackgroundType,
   foodSupply:        15,
   foodLastRefill:    0,      // ms timestamp; 0 = uninitialised
 };
@@ -489,6 +490,21 @@ export async function initDecorations(): Promise<void> {
   } catch { /* ignore */ }
 }
 
+// ─── Background persistence ───────────────────────────────────────────────────
+
+export async function initBackground(): Promise<void> {
+  try {
+    const { tankBackground = 'default' } =
+      await chrome.storage.local.get('tankBackground') as { tankBackground?: BackgroundType };
+    gameState.selectedBackground = tankBackground;
+  } catch { /* ignore */ }
+}
+
+export function saveBackground(type: BackgroundType): void {
+  gameState.selectedBackground = type;
+  chrome.storage.local.set({ tankBackground: type }).catch(() => {});
+}
+
 // ─── Fish spawning ────────────────────────────────────────────────────────────
 
 export function spawnRewardFish(): void {
@@ -539,18 +555,53 @@ const MOLD_PATCHES = [
   { x: 210, rx: 24, ry:  7 }, { x: 265, rx: 30, ry: 10 }, { x: 330, rx: 35, ry:  9 },
 ];
 
+function drawBgGradient(dark: number): void {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  switch (gameState.selectedBackground) {
+    case 'twilight':
+      grad.addColorStop(0, `hsl(270,${65 - dark*28}%,${18 - dark*10}%)`);
+      grad.addColorStop(1, `hsl(260,${70 - dark*28}%,${10 - dark*6}%)`);  break;
+    case 'kelp_forest':
+      grad.addColorStop(0, `hsl(160,${60 - dark*26}%,${20 - dark*11}%)`);
+      grad.addColorStop(1, `hsl(165,${68 - dark*26}%,${12 - dark*7}%)`);  break;
+    case 'coral_reef':
+      grad.addColorStop(0, `hsl(185,${72 - dark*30}%,${22 - dark*12}%)`);
+      grad.addColorStop(1, `hsl(190,${80 - dark*30}%,${14 - dark*8}%)`);  break;
+    case 'abyss':
+      grad.addColorStop(0, `hsl(215,${55 - dark*24}%,${12 - dark*8}%)`);
+      grad.addColorStop(1, `hsl(220,${60 - dark*24}%,${5  - dark*3}%)`);  break;
+    case 'golden_reef':
+      grad.addColorStop(0, `hsl(40,${75 - dark*30}%,${28 - dark*14}%)`);
+      grad.addColorStop(1, `hsl(30,${80 - dark*30}%,${16 - dark*10}%)`);  break;
+    case 'bioluminescent':
+      grad.addColorStop(0, `hsl(200,${42 - dark*20}%,${8 - dark*5}%)`);
+      grad.addColorStop(1, `hsl(210,${48 - dark*20}%,${4 - dark*2}%)`);   break;
+    default:
+      grad.addColorStop(0, `hsl(210,${68 - dark*30}%,${20 - dark*12}%)`);
+      grad.addColorStop(1, `hsl(220,${75 - dark*30}%,${12 - dark*8}%)`);
+  }
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function getBgRayColor(): string {
+  switch (gameState.selectedBackground) {
+    case 'twilight':    return 'rgba(180,160,255,1)';
+    case 'kelp_forest': return 'rgba(140,220,160,1)';
+    case 'coral_reef':  return 'rgba(220,240,255,1)';
+    case 'golden_reef': return 'rgba(255,200,80,1)';
+    default:            return 'rgba(180,220,255,1)';
+  }
+}
+
 function drawWater(displayHealth: number): void {
   const dark   = (1 - displayHealth / 100) * 0.55;
 
   // ── Background gradient ─────────────────────────────────────────────────────
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, `hsl(210,${68 - dark*30}%,${20 - dark*12}%)`);
-  grad.addColorStop(1, `hsl(220,${75 - dark*30}%,${12 - dark*8}%)`);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  drawBgGradient(dark);
 
   // ── Light rays from above (scale with health) ───────────────────────────────
-  if (displayHealth > 45) {
+  if (displayHealth > 45 && gameState.selectedBackground !== 'abyss' && gameState.selectedBackground !== 'bioluminescent') {
     const power = (displayHealth - 45) / 55;
     ctx.save();
     ctx.globalAlpha = power * 0.20;
@@ -559,7 +610,7 @@ function drawWater(displayHealth: number): void {
       ctx.beginPath();
       ctx.moveTo(rx - 12, 0); ctx.lineTo(rx + 12, 0);
       ctx.lineTo(rx + 45, H - 20); ctx.lineTo(rx + 22, H - 20);
-      ctx.fillStyle = 'rgba(180,220,255,1)';
+      ctx.fillStyle = getBgRayColor();
       ctx.fill();
     }
     ctx.restore();

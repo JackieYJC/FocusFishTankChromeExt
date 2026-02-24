@@ -1,8 +1,8 @@
 // ─── Popup entry point ─────────────────────────────────────────────────────────
 
-import { canvas, fish, foodPellets, ripples, render, initFish, initDecorations, decorations, gameState, saveDecorations, Decoration, W, H } from './tank';
+import { canvas, fish, foodPellets, ripples, render, initFish, initDecorations, initBackground, decorations, gameState, saveDecorations, Decoration, W, H } from './tank';
 import { FoodPellet, Ripple }  from './tank';
-import { poll }                from './game-state';
+import { poll, tickLocalSeconds } from './game-state';
 import { initPomodoro }        from './pomodoro';
 import { initShopPane, renderShopPanePreviews, updateShopPaneBalance } from './shop-pane';
 import { initDebugPanel }      from './debug';
@@ -187,6 +187,22 @@ document.getElementById('settings-btn')!.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
+// ─── Popup toast (triggered by shop-pane via CustomEvent) ─────────────────────
+
+let popupToastTimer: ReturnType<typeof setTimeout> | undefined;
+
+function showPopupToast(msg: string): void {
+  const el = document.getElementById('popup-toast')!;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(popupToastTimer);
+  popupToastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+document.addEventListener('shop-toast', (e) => {
+  showPopupToast((e as CustomEvent<string>).detail);
+});
+
 // ─── Daily coin claim (resets at midnight local time) ─────────────────────────
 
 const DAILY_REWARD = 50;
@@ -241,12 +257,15 @@ initArrangeBtn();
 
 render();
 initFoodSystem().then(() => {
-  // Replenish food every 10 s while popup is open
+  // Check for refills every 10 s; refresh countdown display every 1 s
   setInterval(tickFood, 10_000);
+  setInterval(updateFoodUI, 1_000);
 });
 
 initFish().then(async () => {
   await initDecorations();
+  await initBackground();
   poll();
   setInterval(poll, 2000);
+  setInterval(tickLocalSeconds, 1000);
 });

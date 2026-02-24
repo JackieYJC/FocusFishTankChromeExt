@@ -1,9 +1,11 @@
 // ─── Shared domain types ────────────────────────────────────────────────────
 
-export type FishType  = 'basic' | 'long' | 'round' | 'angel' | 'betta';
+export type FishType  = 'basic' | 'long' | 'round' | 'angel' | 'betta' | 'dragon';
 export type FishStage = 'fry' | 'juvenile' | 'adult' | 'dead';
 
-export type DecorationType = 'kelp' | 'coral_fan' | 'coral_branch' | 'anemone';
+export type DecorationType = 'kelp' | 'coral_fan' | 'coral_branch' | 'anemone' | 'treasure_chest';
+
+export type BackgroundType = 'default' | 'twilight' | 'kelp_forest' | 'coral_reef' | 'abyss' | 'bioluminescent' | 'golden_reef';
 
 /** Serialisable fish snapshot — what gets written to chrome.storage.local */
 export interface FishSnapshot {

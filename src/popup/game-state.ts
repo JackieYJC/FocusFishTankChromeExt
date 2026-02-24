@@ -89,6 +89,26 @@ export function applyState({ focusScore = 70, focusSecs = 0,
   gameState.lastCoins = coins;
 }
 
+// ─── Local second tracking (storage only updates every TICK_SECS) ─────────────
+// The background alarm returns early when the popup is the active window
+// (chrome-extension:// URL), so focusSecs/distractedSecs in storage can stall
+// while the popup is open. We interpolate locally at 1s resolution instead.
+
+let _secsInit       = false;
+let _localFocusSecs = 0;
+let _localDistSecs  = 0;
+let _rtFocused      = false;
+let _rtDistracted   = false;
+
+/** Called every 1 s from main.ts; increments display counters and updates DOM. */
+export function tickLocalSeconds(): void {
+  if (!_secsInit) return;
+  if (_rtFocused)    _localFocusSecs += 1;
+  if (_rtDistracted) _localDistSecs  += 1;
+  document.getElementById('focus-time')!.textContent      = fmtTime(Math.floor(_localFocusSecs));
+  document.getElementById('distracted-time')!.textContent = fmtTime(Math.floor(_localDistSecs));
+}
+
 // ─── Poll ─────────────────────────────────────────────────────────────────────
 
 export async function poll(): Promise<void> {
@@ -122,10 +142,23 @@ export async function poll(): Promise<void> {
       }
     } catch { /* tabs API unavailable outside extension context */ }
 
+    // Sync local display counters with storage (storage wins when it's ahead,
+    // e.g. after the background alarm fires while popup was in background)
+    if (!_secsInit) {
+      _secsInit       = true;
+      _localFocusSecs = focusSecs;
+      _localDistSecs  = distractedSecs;
+    } else {
+      if (focusSecs      > _localFocusSecs) _localFocusSecs = focusSecs;
+      if (distractedSecs > _localDistSecs)  _localDistSecs  = distractedSecs;
+    }
+    _rtFocused    = !!rtCurrentSite && !rtIsDistracting;
+    _rtDistracted = rtIsDistracting;
+
     applyState({
       ...(data as Partial<AppState>),
-      focusSecs,
-      distractedSecs,
+      focusSecs:      Math.floor(_localFocusSecs),
+      distractedSecs: Math.floor(_localDistSecs),
       isDistracting: rtIsDistracting,
       currentSite:   rtCurrentSite,
     });

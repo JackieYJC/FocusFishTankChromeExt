@@ -1,17 +1,18 @@
 // ─── Settings page ─────────────────────────────────────────────────────────────
 
-import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS } from '../constants';
-import { drawFishPreview, drawDecorationPreview }                    from '../fish-renderer';
-import type { FishSnapshot, FishType, DecorationSnapshot, DecorationType } from '../types';
+import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, GAME_BALANCE } from '../constants';
+import { drawFishPreview, drawDecorationPreview }               from '../fish-renderer';
+import type { FishType, FishSnapshot, DecorationSnapshot }      from '../types';
 
 // ─── Fish type label map ───────────────────────────────────────────────────────
 
 const FISH_LABEL: Record<string, string> = {
-  basic: 'Oval', long: 'Tetra', round: 'Puffer', angel: 'Angelfish', betta: 'Betta',
+  basic: 'Classic', long: 'Tetra', round: 'Puffer', angel: 'Angelfish', betta: 'Tang', dragon: 'Dragonfish',
 };
 
 const DEC_LABEL: Record<string, string> = {
-  kelp: 'Sea Kelp', coral_fan: 'Fan Coral', coral_branch: 'Branch Coral', anemone: 'Anemone',
+  kelp: 'Sea Kelp', coral_fan: 'Fan Coral', coral_branch: 'Branch Coral',
+  anemone: 'Anemone', treasure_chest: 'Treasure Chest',
 };
 
 // ─── Sidebar navigation ───────────────────────────────────────────────────────
@@ -23,10 +24,11 @@ document.querySelectorAll<HTMLElement>('.nav-btn').forEach(btn => {
     document.querySelectorAll<HTMLElement>('.settings-main > section').forEach(s => (s.hidden = true));
     const page = btn.dataset['page'] ?? '';
     document.getElementById(`page-${page}`)!.hidden = false;
-    if (page === 'fish')        loadFishPage();
-    if (page === 'released')    loadReleasedPage();
-    if (page === 'graveyard')   loadGraveyardPage();
-    if (page === 'decorations') loadDecorationsPage();
+    if (page === 'fish')         loadFishPage();
+    if (page === 'released')     loadReleasedPage();
+    if (page === 'graveyard')    loadGraveyardPage();
+    if (page === 'decorations')  loadDecorationsPage();
+    if (page === 'released-dec') loadReleasedDecorationsPage();
   });
 });
 
@@ -167,7 +169,7 @@ async function releaseFish(id: string): Promise<void> {
   releasedFish.unshift(released);
   await chrome.storage.local.set({ tankFish, releasedFish });
   loadFishPage();
-  toast('Fish released into the wild!');
+  toast('Fish released!');
 }
 
 // ─── Released fish history page ───────────────────────────────────────────────
@@ -292,7 +294,42 @@ async function releaseDecoration(id: string): Promise<void> {
   releasedDecorations.unshift(released);
   await chrome.storage.local.set({ tankDecorations, releasedDecorations });
   loadDecorationsPage();
-  toast('Decoration returned to the ocean!');
+  toast('Returned to the ocean!');
+}
+
+// ─── Released Decorations history page ───────────────────────────────────────
+
+async function loadReleasedDecorationsPage(): Promise<void> {
+  const { releasedDecorations = [] } = await chrome.storage.local.get('releasedDecorations') as { releasedDecorations?: DecorationSnapshot[] };
+  renderReleasedDecList(releasedDecorations);
+}
+
+function renderReleasedDecList(arr: DecorationSnapshot[]): void {
+  const container = document.getElementById('released-dec-list')!;
+  container.innerHTML = '';
+  if (!arr.length) {
+    container.innerHTML = '<p class="muted-text">No decorations released yet.</p>';
+    return;
+  }
+  for (const d of arr) {
+    const card = document.createElement('div');
+    card.className = 'released-dec-card';
+
+    const c = document.createElement('canvas');
+    c.className = 'dec-mini-preview'; c.width = 70; c.height = 50;
+    card.appendChild(c);
+    drawDecorationPreview(c, d.type, d.hue);
+
+    const meta = document.createElement('div');
+    meta.className = 'dec-meta';
+    const dateStr = d.releasedAt ? new Date(d.releasedAt).toLocaleDateString() : 'Unknown date';
+    meta.innerHTML = `
+      <div class="dec-name">${DEC_LABEL[d.type] ?? d.type}</div>
+      <div class="released-date">Released ${dateStr}</div>
+    `;
+    card.appendChild(meta);
+    container.appendChild(card);
+  }
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -340,6 +377,8 @@ document.getElementById('reset-tank-btn')!.addEventListener('click', async () =>
     coins: 0, focusScore: 70, focusSecs: 0, distractedSecs: 0,
     lastDailyClaim: '',
     foodSupply: 15, foodLastRefill: now,
+    tankBackground: 'default', unlockedBackgrounds: ['default'],
+    pomoRemaining: GAME_BALANCE.POMO_DURATION, pomoRunStart: null,
   });
   toast('Tank reset. Two little fry are ready to grow!');
 });

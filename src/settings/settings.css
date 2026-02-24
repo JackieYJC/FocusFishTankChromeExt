@@ -252,6 +252,12 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
 }
 #reset-tank-btn:hover { background: rgba(200,40,40,0.28); }
 
+/* ── Fun fact line on cards ───────────────────────────────────────────────── */
+.card-fact {
+  font-size: 11px; color: #4a7a9a; font-style: italic;
+  line-height: 1.3; margin-top: 5px;
+}
+
 /* ── Saved toast ──────────────────────────────────────────────────────────── */
 #toast {
   position: fixed; bottom: 24px; right: 24px;
