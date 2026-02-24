@@ -22,13 +22,15 @@ export const GAME_BALANCE = {
   DECAY:             1.5,   // score lost per tick on a distracting site
   GAIN:              0.4,   // score gained per tick on a focused site
   COIN_RATE:         0.2,   // coins per tick at focusScore 100, scales linearly
-  POMO_DURATION:     25 * 60,
-  POMO_REWARD:       25,    // coins on pomodoro completion
   // One full growth stage in ~8 min of 100% focus at 60 fps
   BASE_GROWTH_RATE:  100 / (8 * 60 * 60),
   FOOD_GROWTH_CAP:   35,    // max growth points per stage that can come from food
   FOOD_GROWTH_BONUS: 5,     // growth points per pellet eaten
 } as const;
+
+export const SPECIES_HUE: Record<FishType, number> = {
+  basic: 155, long: 20, round: 280, angel: 45, betta: 260, dragon: 15,
+};
 
 export const STAGE_SIZE_FACTORS: Record<string, number> = {
   fry: 0.38, juvenile: 0.62, adult: 1.0, dead: 1.0,

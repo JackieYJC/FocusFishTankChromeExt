@@ -3,7 +3,6 @@
 import { canvas, fish, foodPellets, ripples, render, initFish, initDecorations, initBackground, decorations, gameState, saveDecorations, Decoration, W, H } from './tank';
 import { FoodPellet, Ripple }  from './tank';
 import { poll, tickLocalSeconds } from './game-state';
-import { initPomodoro }        from './pomodoro';
 import { initShopPane, renderShopPanePreviews, updateShopPaneBalance } from './shop-pane';
 import { initDebugPanel }      from './debug';
 import { MAX_FOOD, FOOD_REFILL_SECS }       from '../constants';
@@ -120,6 +119,8 @@ canvas.addEventListener('click', e => {
   if (gameState.debugMode) {
     const hit = fish.find(f => f.hitTest(x, y, 22));
     if (hit) { hit.cycleStage(); return; }
+    const hitDec = decorations.find(d => d.isPlant() && d.hitTest(x, y, 26));
+    if (hitDec) { hitDec.cycleDebugState(); return; }
   }
 
   if (gameState.foodSupply <= 0) return; // no food left
@@ -250,7 +251,6 @@ function initDailyBtn(): void {
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 initDebugPanel();
-initPomodoro();
 initShopPane();
 initDailyBtn();
 initArrangeBtn();

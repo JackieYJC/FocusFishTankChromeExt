@@ -193,6 +193,11 @@ export async function initShopPane(): Promise<void> {
       activeBackground = type;
       saveBackground(type);
       buildBgGrid();
+      // Re-apply affordability after grid rebuild (new buttons start as enabled by default)
+      try {
+        const { coins: freshCoins = 0 } = await chrome.storage.local.get('coins') as { coins?: number };
+        updateShopPaneBalance(freshCoins as number);
+      } catch { /* ignore */ }
     });
   }
 
@@ -214,12 +219,11 @@ export async function initShopPane(): Promise<void> {
     try {
       const { coins = 0 } = await chrome.storage.local.get('coins') as { coins?: number };
       if (coins < cost) return;
-      const hue      = Math.floor(Math.random() * 360);
       const newCoins = Math.round((coins - cost) * 1000) / 1000;
       await chrome.storage.local.set({ coins: newCoins });
       updateShopPaneBalance(newCoins);
       document.getElementById('coin-value')!.textContent = String(Math.floor(newCoins));
-      spawnDropFish(item.type, hue);
+      spawnDropFish(item.type);
       document.dispatchEvent(new CustomEvent('shop-toast', { detail: `🐟 ${item.name} on the way!` }));
     } catch { /* outside extension context */ }
   });

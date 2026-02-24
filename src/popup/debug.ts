@@ -3,6 +3,7 @@
 import { gameState, spawnDropFish } from './tank';
 import type { FishType }            from '../types';
 import { poll }                     from './game-state';
+import { MAX_FOOD }                 from '../constants';
 
 export function initDebugPanel(): void {
   document.getElementById('debug-btn')!.addEventListener('click', () => {
@@ -44,9 +45,14 @@ export function initDebugPanel(): void {
     } catch { /* outside extension context */ }
   });
 
+  document.getElementById('debug-food-btn')!.addEventListener('click', () => {
+    gameState.foodSupply = MAX_FOOD;
+    chrome.storage.local.set({ foodSupply: MAX_FOOD }).catch(() => {});
+  });
+
   document.getElementById('debug-fish-btn')!.addEventListener('click', () => {
-    const types: FishType[] = ['basic', 'long', 'round'];
-    spawnDropFish(types[Math.floor(Math.random() * types.length)], Math.floor(Math.random() * 360));
+    const types: FishType[] = ['basic', 'long', 'round', 'angel', 'betta', 'dragon'];
+    spawnDropFish(types[Math.floor(Math.random() * types.length)]);
   });
 
   // Extra coin accrual while debug is active

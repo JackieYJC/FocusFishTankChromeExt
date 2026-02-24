@@ -34,15 +34,6 @@ export function spawnCoinFloat(text: string): void {
   div.addEventListener('animationend', () => div.remove());
 }
 
-export function showBurst(label: string): void {
-  const el = document.getElementById('pomo-burst')!;
-  el.textContent = label;
-  el.classList.remove('show');
-  void el.offsetWidth; // force reflow to restart animation
-  el.classList.add('show');
-  el.addEventListener('animationend', () => el.classList.remove('show'), { once: true });
-}
-
 // ─── Apply storage state to DOM ───────────────────────────────────────────────
 
 export function applyState({ focusScore = 70, focusSecs = 0,
@@ -94,15 +85,27 @@ export function applyState({ focusScore = 70, focusSecs = 0,
 // (chrome-extension:// URL), so focusSecs/distractedSecs in storage can stall
 // while the popup is open. We interpolate locally at 1s resolution instead.
 
-let _secsInit       = false;
-let _localFocusSecs = 0;
-let _localDistSecs  = 0;
-let _rtFocused      = false;
-let _rtDistracted   = false;
+let _secsInit            = false;
+let _localFocusSecs      = 0;
+let _localDistSecs       = 0;
+let _rtFocused           = false;
+let _rtDistracted        = false;
+let _lastKnownDate       = '';   // "YYYY-MM-DD" — used to detect midnight rollover
+let _lastStorageFocusSecs = 0;   // last value read from storage — detects background reset
+let _lastStorageDistSecs  = 0;
 
 /** Called every 1 s from main.ts; increments display counters and updates DOM. */
 export function tickLocalSeconds(): void {
   if (!_secsInit) return;
+
+  // Midnight rollover: reset local counters when the calendar date changes
+  const today = new Date().toLocaleDateString('en-CA');
+  if (_lastKnownDate && _lastKnownDate !== today) {
+    _localFocusSecs = 0;
+    _localDistSecs  = 0;
+  }
+  _lastKnownDate = today;
+
   if (_rtFocused)    _localFocusSecs += 1;
   if (_rtDistracted) _localDistSecs  += 1;
   document.getElementById('focus-time')!.textContent      = fmtTime(Math.floor(_localFocusSecs));
@@ -118,7 +121,7 @@ export async function poll(): Promise<void> {
       // legacy migration support
       'totalFocusMinutes', 'totalDistractedMinutes',
       'isDistracting', 'currentSite', 'coins',
-      'tankFish', 'tankDecorations', 'blocklist',
+      'tankFish', 'tankDecorations', 'blocklist', 'lastFocusDate',
     ]);
 
     // Seconds — with legacy fallback
@@ -142,18 +145,44 @@ export async function poll(): Promise<void> {
       }
     } catch { /* tabs API unavailable outside extension context */ }
 
-    // Sync local display counters with storage (storage wins when it's ahead,
-    // e.g. after the background alarm fires while popup was in background)
+    // Sync local display counters with storage
     if (!_secsInit) {
-      _secsInit       = true;
-      _localFocusSecs = focusSecs;
-      _localDistSecs  = distractedSecs;
+      _secsInit             = true;
+      _localFocusSecs       = focusSecs;
+      _localDistSecs        = distractedSecs;
+      _lastKnownDate        = new Date().toLocaleDateString('en-CA');
+      _lastStorageFocusSecs = focusSecs;
+      _lastStorageDistSecs  = distractedSecs;
     } else {
-      if (focusSecs      > _localFocusSecs) _localFocusSecs = focusSecs;
-      if (distractedSecs > _localDistSecs)  _localDistSecs  = distractedSecs;
+      // Allow downward sync when background performed a midnight reset
+      // (storage dropped below last known storage value → background cleared it)
+      if (focusSecs < _lastStorageFocusSecs && focusSecs < _localFocusSecs) {
+        _localFocusSecs = focusSecs;        // background midnight reset
+      } else if (focusSecs > _localFocusSecs) {
+        _localFocusSecs = focusSecs;        // storage advanced ahead of local
+      }
+      if (distractedSecs < _lastStorageDistSecs && distractedSecs < _localDistSecs) {
+        _localDistSecs = distractedSecs;
+      } else if (distractedSecs > _localDistSecs) {
+        _localDistSecs = distractedSecs;
+      }
+      _lastStorageFocusSecs = focusSecs;
+      _lastStorageDistSecs  = distractedSecs;
     }
     _rtFocused    = !!rtCurrentSite && !rtIsDistracting;
     _rtDistracted = rtIsDistracting;
+
+    // Persist local interpolated seconds back to storage so they survive popup close.
+    // Background early-returns when popup is the active tab, so these seconds would
+    // otherwise be lost when the popup closes.
+    const localF = Math.floor(_localFocusSecs);
+    const localD = Math.floor(_localDistSecs);
+    if (localF > focusSecs || localD > distractedSecs) {
+      const writeback: Record<string, number> = {};
+      if (localF > focusSecs)      writeback['focusSecs']      = localF;
+      if (localD > distractedSecs) writeback['distractedSecs'] = localD;
+      chrome.storage.local.set(writeback).catch(() => {});
+    }
 
     applyState({
       ...(data as Partial<AppState>),
@@ -181,12 +210,14 @@ export async function poll(): Promise<void> {
       const storedDecIds = new Set(tankDecorations.map(d => d.id));
       let decChanged = false;
       for (let i = decorations.length - 1; i >= 0; i--) {
+        // Skip newly-purchased decorations whose saveDecorations() debounce hasn't fired yet
+        if (decorations[i].spawnFrames > 0) continue;
         if (!storedDecIds.has(decorations[i].id)) { decorations.splice(i, 1); decChanged = true; }
       }
       if (decChanged) saveDecorations();
     }
 
-    await checkPendingFish(showBurst);
+    await checkPendingFish();
   } catch {
     applyState({ focusScore: gameState.health });
   }

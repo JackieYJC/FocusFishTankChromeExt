@@ -1,7 +1,7 @@
 // ─── Tank — Fish class, Decoration class, scene objects, render loop ──────────
 
 import { drawFry, drawLiveFish, drawDeadFish, drawDecoration } from '../fish-renderer';
-import { GAME_BALANCE, STAGE_SIZE_FACTORS, DEC_HEALTH_PER, MAX_DEC_BONUS } from '../constants';
+import { GAME_BALANCE, STAGE_SIZE_FACTORS, DEC_HEALTH_PER, MAX_DEC_BONUS, SPECIES_HUE } from '../constants';
 import type { FishType, FishStage, FishSnapshot, DecorationType, DecorationSnapshot, BackgroundType } from '../types';
 
 const { BASE_GROWTH_RATE, FOOD_GROWTH_CAP, FOOD_GROWTH_BONUS } = GAME_BALANCE;
@@ -216,32 +216,60 @@ export class Fish {
 // ─── Decoration ───────────────────────────────────────────────────────────────
 
 export class Decoration {
-  id:    string;
-  type:  DecorationType;
-  x:     number;
-  y:     number;
-  hue:   number;
-  scale: number;
-  phase: number;
+  id:               string;
+  type:             DecorationType;
+  x:                number;
+  y:                number;
+  hue:              number;
+  scale:            number;
+  phase:            number;
+  spawnFrames:      number;  // >0 on newly purchased items; protects from poll eviction
+  debugHealthState: number | null = null; // null = follow tank; 0 = well, 1 = alive, 2 = dead
 
-  constructor(snap: DecorationSnapshot) {
-    this.id    = snap.id;
-    this.type  = snap.type;
-    this.x     = snap.x;
-    this.y     = snap.y;
-    this.hue   = snap.hue;
-    this.scale = snap.scale;
-    this.phase = Math.random() * Math.PI * 2;
+  constructor(snap: DecorationSnapshot, isNew = false) {
+    this.id          = snap.id;
+    this.type        = snap.type;
+    this.x           = snap.x;
+    this.y           = snap.y;
+    this.hue         = snap.hue;
+    this.scale       = snap.scale;
+    this.phase       = Math.random() * Math.PI * 2;
+    this.spawnFrames = isNew ? 180 : 0;
   }
 
-  update(): void { this.phase += 0.018; }
+  update(): void {
+    this.phase += 0.018;
+    if (this.spawnFrames > 0) this.spawnFrames--;
+  }
 
   hitTest(px: number, py: number, r: number): boolean {
     return Math.hypot(px - this.x, py - this.y) < r;
   }
 
+  isPlant(): boolean {
+    return this.type === 'kelp' || this.type === 'coral_fan'
+        || this.type === 'coral_branch' || this.type === 'anemone';
+  }
+
+  /** Debug mode only: cycles well → alive → dead → well. */
+  cycleDebugState(): void {
+    if (!this.isPlant()) return;
+    this.debugHealthState = this.debugHealthState === null ? 0
+                          : (this.debugHealthState + 1) % 3;
+  }
+
   draw(_ctx: CanvasRenderingContext2D): void {
-    drawDecoration(_ctx, this.type, this.x, this.y, this.hue, this.scale, this.phase);
+    let health: number;
+    if (this.isPlant()) {
+      if (this.debugHealthState !== null) {
+        health = this.debugHealthState === 0 ? 100 : this.debugHealthState === 1 ? 50 : 15;
+      } else {
+        health = gameState.tankHealth;
+      }
+    } else {
+      health = 100; // treasure_chest unaffected by tank health
+    }
+    drawDecoration(_ctx, this.type, this.x, this.y, this.hue, this.scale, this.phase, health);
   }
 
   toSnapshot(): DecorationSnapshot {
@@ -412,60 +440,98 @@ export const seaweeds = [35, 100, 210, 310].map(x => new Seaweed(x, H));
 
 let saveFishTimer: ReturnType<typeof setTimeout> | null = null;
 
+function _buildFishSnapshot(): FishSnapshot[] {
+  return fish.map(f => ({
+    id: f.id, type: f.type, hue: f.hue, stage: f.stage,
+    health: f.health, maxSize: f.maxSize, speed: f.speed,
+    growth: f.growth, foodGrowth: f.foodGrowth, bornAt: f.bornAt,
+  }));
+}
+
 export function saveFish(): void {
   if (saveFishTimer) clearTimeout(saveFishTimer);
   saveFishTimer = setTimeout(() => {
-    const snapshot: FishSnapshot[] = fish.map(f => ({
-      id: f.id, type: f.type, hue: f.hue, stage: f.stage,
-      health: f.health, maxSize: f.maxSize, speed: f.speed,
-      growth: f.growth, foodGrowth: f.foodGrowth, bornAt: f.bornAt,
-    }));
-    chrome.storage.local.set({ tankFish: snapshot }).catch(() => {});
+    chrome.storage.local.set({ tankFish: _buildFishSnapshot() }).catch(() => {});
   }, 250);
 }
 
-export async function archiveToGraveyard(f: Fish): Promise<void> {
+/** Non-debounced save — use after archiving dead fish so they're removed immediately. */
+export function saveFishNow(): void {
+  if (saveFishTimer) { clearTimeout(saveFishTimer); saveFishTimer = null; }
+  chrome.storage.local.set({ tankFish: _buildFishSnapshot() }).catch(() => {});
+}
+
+/** Batch-archives one or more dead fish; deduplicates by id to prevent repeated entries. */
+export async function archiveBatchToGraveyard(deadFish: Fish[]): Promise<void> {
+  if (deadFish.length === 0) return;
   try {
     const { graveyardFish = [] } = await chrome.storage.local.get('graveyardFish') as { graveyardFish?: FishSnapshot[] };
-    graveyardFish.unshift({
-      id: f.id, type: f.type, hue: f.hue, stage: 'dead',
-      health: 0, maxSize: f.maxSize, speed: f.speed,
-      growth: f.growth, foodGrowth: f.foodGrowth,
-      bornAt: f.bornAt, diedAt: Date.now(),
-    });
+    const now = Date.now();
+    for (const f of deadFish) {
+      if (graveyardFish.some(g => g.id === f.id)) continue; // dedup
+      graveyardFish.unshift({
+        id: f.id, type: f.type, hue: f.hue, stage: 'dead',
+        health: 0, maxSize: f.maxSize, speed: f.speed,
+        growth: f.growth, foodGrowth: f.foodGrowth,
+        bornAt: f.bornAt, diedAt: now,
+      });
+    }
     await chrome.storage.local.set({ graveyardFish });
   } catch { /* ignore */ }
 }
 
 export async function initFish(): Promise<void> {
   const allTypes: FishType[] = ['basic', 'long', 'round', 'angel', 'betta'];
-  try {
-    const { tankFish } = await chrome.storage.local.get('tankFish') as { tankFish?: FishSnapshot[] };
-    if (tankFish && tankFish.length > 0) {
-      for (const f of tankFish) {
-        const m = Math.round(f.maxSize * 0.38) * 2;
-        const x = m + Math.random() * (W - m * 2);
-        const y = m + Math.random() * (H - m * 2 - 25);
-        const nf = new Fish({ id: f.id, x, y, size: f.maxSize, speed: f.speed, hue: f.hue, type: f.type, stage: f.stage, growth: f.growth ?? 0, foodGrowth: f.foodGrowth ?? 0, bornAt: f.bornAt });
-        nf.health = f.health;
-        fish.push(nf);
-      }
-    } else {
-      for (let i = 0; i < 2; i++) {
-        const type = allTypes[Math.floor(Math.random() * allTypes.length)];
-        const maxS = 17 + Math.floor(Math.random() * 6);
-        const m    = Math.round(maxS * 0.38) * 2;
-        fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: Math.floor(Math.random() * 360), type, stage: 'fry' }));
-      }
-      saveFish();
-    }
-  } catch {
+  function spawnDefaultFry(): void {
     for (let i = 0; i < 2; i++) {
       const type = allTypes[Math.floor(Math.random() * allTypes.length)];
       const maxS = 17 + Math.floor(Math.random() * 6);
       const m    = Math.round(maxS * 0.38) * 2;
-      fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: Math.floor(Math.random() * 360), type, stage: 'fry' }));
+      fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: SPECIES_HUE[type], type, stage: 'fry' }));
     }
+    saveFish();
+  }
+
+  try {
+    const { tankFish } = await chrome.storage.local.get('tankFish') as { tankFish?: FishSnapshot[] };
+    if (tankFish && tankFish.length > 0) {
+      const liveFish = tankFish.filter(f => f.stage !== 'dead');
+      const deadFish = tankFish.filter(f => f.stage === 'dead');
+
+      // Archive any dead fish lingering in tankFish (popup closed during fade animation)
+      if (deadFish.length > 0) {
+        try {
+          const { graveyardFish = [] } = await chrome.storage.local.get('graveyardFish') as { graveyardFish?: FishSnapshot[] };
+          const now = Date.now();
+          for (const f of deadFish) {
+            if (graveyardFish.some(g => g.id === f.id)) continue;
+            graveyardFish.unshift({ id: f.id, type: f.type, hue: f.hue, stage: 'dead', health: 0, maxSize: f.maxSize, speed: f.speed, growth: f.growth ?? 0, foodGrowth: f.foodGrowth ?? 0, bornAt: f.bornAt, diedAt: now });
+          }
+          chrome.storage.local.set({ graveyardFish }).catch(() => {});
+        } catch { /* ignore */ }
+        // Clean dead fish out of tankFish storage
+        chrome.storage.local.set({ tankFish: liveFish }).catch(() => {});
+      }
+
+      if (liveFish.length > 0) {
+        for (const f of liveFish) {
+          const m = Math.round(f.maxSize * 0.38) * 2;
+          const x = m + Math.random() * (W - m * 2);
+          const y = m + Math.random() * (H - m * 2 - 25);
+          const nf = new Fish({ id: f.id, x, y, size: f.maxSize, speed: f.speed, hue: f.hue, type: f.type, stage: f.stage, growth: f.growth ?? 0, foodGrowth: f.foodGrowth ?? 0, bornAt: f.bornAt });
+          nf.health = f.health;
+          fish.push(nf);
+        }
+        return;
+      }
+    }
+    spawnDefaultFry();
+  } catch {
+    // fallback if storage unavailable
+    const type = allTypes[Math.floor(Math.random() * allTypes.length)];
+    const maxS = 17 + Math.floor(Math.random() * 6);
+    const m    = Math.round(maxS * 0.38) * 2;
+    fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: SPECIES_HUE[type], type, stage: 'fry' }));
   }
 }
 
@@ -507,20 +573,9 @@ export function saveBackground(type: BackgroundType): void {
 
 // ─── Fish spawning ────────────────────────────────────────────────────────────
 
-export function spawnRewardFish(): void {
-  const types: FishType[] = ['basic', 'long', 'round', 'angel', 'betta'];
-  const type = types[Math.floor(Math.random() * types.length)];
-  const hue  = Math.floor(Math.random() * 360);
+export function spawnDropFish(type: FishType): void {
   const maxS = 17 + Math.floor(Math.random() * 6);
-  const frySize = Math.round(maxS * 0.38);
-  const m = frySize * 2;
-  fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
-  saveFish();
-}
-
-export function spawnDropFish(type: FishType, hue: number): void {
-  const maxS = 17 + Math.floor(Math.random() * 6);
-  fish.push(new Fish({ x: 40 + Math.random() * (W - 80), y: -maxS, size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry', entering: true }));
+  fish.push(new Fish({ x: 40 + Math.random() * (W - 80), y: -maxS, size: maxS, speed: 0.8 + Math.random() * 0.6, hue: SPECIES_HUE[type], type, stage: 'fry', entering: true }));
   saveFish();
 }
 
@@ -529,22 +584,21 @@ export function spawnDropDecoration(type: DecorationType, hue: number): void {
   const x     = 40 + Math.random() * (W - 80);
   const y     = H - 20;                          // sit on the sand
   const scale = 0.85 + Math.random() * 0.30;     // slight size variation
-  decorations.push(new Decoration({ id, type, x, y, hue, scale }));
+  decorations.push(new Decoration({ id, type, x, y, hue, scale }, true)); // isNew=true protects from poll eviction
   saveDecorations();
 }
 
-export async function checkPendingFish(showBurst: (msg: string) => void): Promise<void> {
-  const { pendingFish = [] } = await chrome.storage.local.get('pendingFish') as { pendingFish?: Array<{ type: FishType; hue: number }> };
+export async function checkPendingFish(): Promise<void> {
+  const { pendingFish = [] } = await chrome.storage.local.get('pendingFish') as { pendingFish?: Array<{ type: FishType; hue?: number }> };
   if (pendingFish.length === 0) return;
-  for (const { type, hue } of pendingFish) {
+  for (const { type } of pendingFish) {
     const maxS = 17 + Math.floor(Math.random() * 6);
     const frySize = Math.round(maxS * 0.38);
     const m = frySize * 2;
-    fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue, type, stage: 'fry' }));
+    fish.push(new Fish({ x: m + Math.random() * (W - m * 2), y: m + Math.random() * (H - m * 2 - 25), size: maxS, speed: 0.8 + Math.random() * 0.6, hue: SPECIES_HUE[type] ?? 155, type, stage: 'fry' }));
   }
   saveFish();
   await chrome.storage.local.set({ pendingFish: [] });
-  showBurst('🐟 New fish arrived! Check your tank.');
 }
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
@@ -720,13 +774,17 @@ export function render(): void {
   fish.sort((a, b) => a.size - b.size);
   fish.forEach(f => { f.update(W, H, gameState.tankHealth, foodPellets); f.draw(ctx, f.health); });
 
-  // Archive fully faded dead fish to graveyard
+  // Batch-archive fully faded dead fish to graveyard (single storage write avoids race conditions)
+  const toArchive: Fish[] = [];
   for (let i = fish.length - 1; i >= 0; i--) {
     if (fish[i].stage === 'dead' && fish[i].deadAlpha <= 0) {
-      archiveToGraveyard(fish[i]);
+      toArchive.push(fish[i]);
       fish.splice(i, 1);
-      saveFish();
     }
+  }
+  if (toArchive.length > 0) {
+    archiveBatchToGraveyard(toArchive);
+    saveFishNow(); // immediate save so dead fish are removed from tankFish before popup closes
   }
 
   if (gameState.debugMode) {
@@ -759,6 +817,18 @@ export function render(): void {
       ctx.fillStyle = f.stage === 'dead' ? '#f55' : '#ff0';
       ctx.fillText(f.stage, f.x, by - 2);
     }
+    // Plant health state labels
+    ctx.font = 'bold 8px monospace';
+    for (const d of decorations) {
+      if (!d.isPlant()) continue;
+      const s = d.debugHealthState !== null
+        ? (['well', 'alive', 'dead'] as const)[d.debugHealthState]
+        : gameState.tankHealth >= 60 ? 'well' : gameState.tankHealth >= 30 ? 'alive' : 'dead';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#0ff';
+      ctx.fillText(s, d.x, d.y - 32);
+    }
+
     ctx.textAlign = 'left';
     ctx.font = 'bold 10px monospace';
     ctx.fillStyle = '#ff0';

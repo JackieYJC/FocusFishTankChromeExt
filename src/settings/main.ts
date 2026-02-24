@@ -1,6 +1,6 @@
 // ─── Settings page ─────────────────────────────────────────────────────────────
 
-import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, GAME_BALANCE } from '../constants';
+import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, SPECIES_HUE } from '../constants';
 import { drawFishPreview, drawDecorationPreview }               from '../fish-renderer';
 import type { FishType, FishSnapshot, DecorationSnapshot }      from '../types';
 
@@ -275,7 +275,7 @@ function buildDecorationCard(d: DecorationSnapshot): HTMLElement {
 
   const btn = document.createElement('button');
   btn.className   = 'release-btn';
-  btn.textContent = 'Release';
+  btn.textContent = d.type === 'treasure_chest' ? 'Abandon' : 'Release';
   btn.addEventListener('click', () => releaseDecoration(d.id));
   card.appendChild(btn);
 
@@ -294,7 +294,7 @@ async function releaseDecoration(id: string): Promise<void> {
   releasedDecorations.unshift(released);
   await chrome.storage.local.set({ tankDecorations, releasedDecorations });
   loadDecorationsPage();
-  toast('Returned to the ocean!');
+  toast(released.type === 'treasure_chest' ? 'Chest abandoned.' : 'Returned to the ocean!');
 }
 
 // ─── Released Decorations history page ───────────────────────────────────────
@@ -360,7 +360,7 @@ document.getElementById('reset-tank-btn')!.addEventListener('click', async () =>
     return {
       id:         (now + i).toString(36) + Math.random().toString(36).slice(2),
       type,
-      hue:        Math.floor(Math.random() * 360),
+      hue:        SPECIES_HUE[type],
       speed:      0.8 + Math.random() * 0.6,
       stage:      'fry' as const,
       health:     80,
@@ -375,10 +375,9 @@ document.getElementById('reset-tank-btn')!.addEventListener('click', async () =>
     tankFish: defaultFish, releasedFish: [], graveyardFish: [], pendingFish: [],
     tankDecorations: [], releasedDecorations: [],
     coins: 0, focusScore: 70, focusSecs: 0, distractedSecs: 0,
-    lastDailyClaim: '',
+    lastDailyClaim: '', lastFocusDate: '',
     foodSupply: 15, foodLastRefill: now,
     tankBackground: 'default', unlockedBackgrounds: ['default'],
-    pomoRemaining: GAME_BALANCE.POMO_DURATION, pomoRunStart: null,
   });
   toast('Tank reset. Two little fry are ready to grow!');
 });
