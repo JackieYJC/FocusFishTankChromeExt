@@ -16,13 +16,31 @@
       <button class="nav-btn" data-page="released">Released Fish</button>
       <button class="nav-btn" data-page="graveyard">Graveyard</button>
       <button class="nav-btn" data-page="decorations">My Decorations</button>
-      <button class="nav-btn" data-page="released-dec">Released Decorations</button>
+      <button class="nav-btn" data-page="released-dec">Released Plants</button>
     </nav>
 
     <main class="settings-main">
 
       <!-- Preferences page -->
       <section id="page-preferences">
+
+        <!-- UI Theme -->
+        <section class="card">
+          <div class="card-header">
+            <h2>UI Theme</h2>
+            <p class="card-desc">Choose the color palette for your aquarium.</p>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <span class="field-label">Appearance</span>
+            <select id="ui-theme-select">
+              <option value="ocean">🌊 Ocean (default)</option>
+              <option value="midnight">🌑 Midnight</option>
+              <option value="coral">🪸 Coral</option>
+              <option value="forest">🌿 Forest</option>
+              <option value="classic">⚓ Classic</option>
+            </select>
+          </div>
+        </section>
 
         <!-- Work Hours -->
         <section class="card">
@@ -115,14 +133,14 @@
       <!-- My Decorations page -->
       <section id="page-decorations" hidden>
         <h2 class="page-title">My Decorations</h2>
-        <p class="page-desc">Decorations currently in your tank. Release them back to the ocean.</p>
+        <p class="page-desc">Decorations currently in your tank. Release plants back to the ocean, or abandon the chest.</p>
         <div id="decoration-list"></div>
       </section>
 
-      <!-- Released Decorations page -->
+      <!-- Released Plants page -->
       <section id="page-released-dec" hidden>
-        <h2 class="page-title">Released Decorations</h2>
-        <p class="page-desc">Decorations you've set free back to the ocean.</p>
+        <h2 class="page-title">Released Plants</h2>
+        <p class="page-desc">Plants and decorations you've set free back to the ocean.</p>
         <div id="released-dec-list"></div>
       </section>
 

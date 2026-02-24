@@ -7,6 +7,8 @@ export type DecorationType = 'kelp' | 'coral_fan' | 'coral_branch' | 'anemone' |
 
 export type BackgroundType = 'default' | 'twilight' | 'kelp_forest' | 'coral_reef' | 'abyss' | 'bioluminescent' | 'golden_reef';
 
+export type UITheme = 'ocean' | 'midnight' | 'coral' | 'forest' | 'classic';
+
 /** Serialisable fish snapshot — what gets written to chrome.storage.local */
 export interface FishSnapshot {
   id:          string;

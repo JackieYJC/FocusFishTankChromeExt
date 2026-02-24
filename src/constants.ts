@@ -1,7 +1,7 @@
 // ─── Shared constants ────────────────────────────────────────────────────────
 // Single source of truth — imported by background, popup, and settings.
 
-import type { FishType, DecorationType, BackgroundType } from './types';
+import type { FishType, DecorationType, BackgroundType, UITheme } from './types';
 
 export const DEFAULT_BLOCKLIST: string[] = [
   'twitter.com', 'x.com', 'reddit.com', 'facebook.com',
@@ -103,6 +103,22 @@ export const BACKGROUND_ITEMS: BackgroundShopItem[] = [
   { type: 'abyss',          name: 'The Abyss',       desc: 'Pitch-dark hadal zone. Few survive here.',         cost: 250 },
   { type: 'golden_reef',    name: 'Golden Reef',     desc: '✦ Rare · Amber warmth of a sunlit shallow reef.',  cost: 350 },
   { type: 'bioluminescent', name: 'Bioluminescent',  desc: '✦ Rare · Pitch black, alive with ghostly light.',  cost: 400 },
+];
+
+// ─── UI Themes ────────────────────────────────────────────────────────────────
+
+export interface UIThemeItem {
+  id:   UITheme;
+  name: string;
+  desc: string;
+}
+
+export const UI_THEMES: UIThemeItem[] = [
+  { id: 'ocean',    name: 'Ocean',    desc: 'Deep blue waters — the default look.' },
+  { id: 'midnight', name: 'Midnight', desc: 'Near-black void for deep focus.' },
+  { id: 'coral',    name: 'Coral',    desc: 'Warm rose hues of a tropical reef.' },
+  { id: 'forest',   name: 'Forest',   desc: 'Cool kelp-forest greens.' },
+  { id: 'classic',  name: 'Classic',  desc: 'Understated navy — the original look.' },
 ];
 
 // ─── Decoration health bonus ──────────────────────────────────────────────────

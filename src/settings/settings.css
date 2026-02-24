@@ -1,14 +1,62 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg:      #0a111c;
-  --card:    #111e30;
-  --border:  #1e3050;
-  --text:    #d8e8f8;
-  --muted:   #6a8aaa;
-  --accent:  #4a8adc;
-  --accent2: #1a4a8a;
-  --danger:  #e05050;
+  --bg:         #0a111c;
+  --card:       #111e30;
+  --border:     #1e3050;
+  --text:       #d8e8f8;
+  --muted:      #6a8aaa;
+  --accent:     #4a8adc;
+  --accent2:    #1a4a8a;
+  --danger:     #e05050;
+  --sidebar-bg: #071220;
+  --input-bg:   #0d1a2a;
+}
+
+/* ── Themes ───────────────────────────────────────────────────────────────── */
+body[data-theme="midnight"] {
+  --bg:         #030508;
+  --card:       #07090e;
+  --border:     #10192a;
+  --text:       #8a9fb8;
+  --muted:      #304050;
+  --accent:     #3068c0;
+  --accent2:    #0f1a30;
+  --sidebar-bg: #020406;
+  --input-bg:   #05070c;
+}
+body[data-theme="coral"] {
+  --bg:         #180c12;
+  --card:       #211018;
+  --border:     #3a1828;
+  --text:       #f0c0d0;
+  --muted:      #885068;
+  --accent:     #e07090;
+  --accent2:    #3a1828;
+  --sidebar-bg: #120810;
+  --input-bg:   #1c0e16;
+}
+body[data-theme="forest"] {
+  --bg:         #080f0a;
+  --card:       #0c1810;
+  --border:     #162a1a;
+  --text:       #b8e0c8;
+  --muted:      #48785a;
+  --accent:     #40a860;
+  --accent2:    #122018;
+  --sidebar-bg: #060c08;
+  --input-bg:   #0a1510;
+}
+body[data-theme="classic"] {
+  --bg:         #0a1420;
+  --card:       #131d2c;
+  --border:     #1e3048;
+  --text:       #b8cce0;
+  --muted:      #485f78;
+  --accent:     #3a78c0;
+  --accent2:    #192840;
+  --sidebar-bg: #081020;
+  --input-bg:   #0e1828;
 }
 
 body {
@@ -26,7 +74,7 @@ body {
 
 .sidebar {
   width: 180px; flex-shrink: 0;
-  background: #071220; padding: 24px 12px;
+  background: var(--sidebar-bg); padding: 24px 12px;
   display: flex; flex-direction: column; gap: 6px;
   border-right: 1px solid var(--border);
 }
@@ -93,7 +141,7 @@ h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .day-pill span {
   display: block; padding: 6px 14px;
   border-radius: 8px; font-size: 13px;
-  background: #0d1a2a; color: var(--muted);
+  background: var(--input-bg); color: var(--muted);
   cursor: pointer; user-select: none;
   border: 1px solid var(--border);
   transition: all 0.15s;
@@ -108,7 +156,7 @@ h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .time-group { display: flex; flex-direction: column; }
 
 input[type="time"] {
-  background: #0d1a2a; border: 1px solid var(--border);
+  background: var(--input-bg); border: 1px solid var(--border);
   border-radius: 8px; color: var(--text);
   padding: 8px 12px; font-size: 15px;
   margin-top: 4px;
@@ -131,7 +179,7 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
   border-bottom: 1px solid var(--border);
 }
 #blocklist li:last-child { border-bottom: none; }
-#blocklist li:hover { background: #0d1a2a; }
+#blocklist li:hover { background: var(--input-bg); }
 
 .remove-btn {
   background: none; border: none;
@@ -145,7 +193,7 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
 #add-site-row { display: flex; gap: 10px; }
 
 #new-site {
-  flex: 1; background: #0d1a2a;
+  flex: 1; background: var(--input-bg);
   border: 1px solid var(--border); border-radius: 8px;
   color: var(--text); padding: 9px 14px; font-size: 14px;
 }
@@ -238,6 +286,17 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
   background: var(--card); margin-bottom: 8px;
   opacity: 0.65;
 }
+
+/* ── Theme selector ──────────────────────────────────────────────────────── */
+#ui-theme-select {
+  appearance: none;
+  background: var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236a8aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center;
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 9px 36px 9px 14px;
+  font-size: 14px; cursor: pointer; width: 100%;
+  transition: border-color 0.15s;
+}
+#ui-theme-select:focus { outline: none; border-color: var(--accent); }
 
 /* ── Danger Zone ──────────────────────────────────────────────────────────── */
 .danger-card { border-color: rgba(220,60,60,0.3); }

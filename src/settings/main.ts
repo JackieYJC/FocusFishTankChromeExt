@@ -2,7 +2,8 @@
 
 import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, SPECIES_HUE } from '../constants';
 import { drawFishPreview, drawDecorationPreview }               from '../fish-renderer';
-import type { FishType, FishSnapshot, DecorationSnapshot }      from '../types';
+import { loadAndApplyTheme, applyTheme }                        from '../theme';
+import type { FishType, FishSnapshot, DecorationSnapshot, UITheme } from '../types';
 
 // ─── Fish type label map ───────────────────────────────────────────────────────
 
@@ -35,15 +36,17 @@ document.querySelectorAll<HTMLElement>('.nav-btn').forEach(btn => {
 // ─── Work hours ───────────────────────────────────────────────────────────────
 
 async function load(): Promise<void> {
-  const { blocklist = DEFAULT_BLOCKLIST, workHours = DEFAULT_WORK_HOURS } =
-    await chrome.storage.local.get(['blocklist', 'workHours']) as {
+  const { blocklist = DEFAULT_BLOCKLIST, workHours = DEFAULT_WORK_HOURS, uiTheme = 'ocean' } =
+    await chrome.storage.local.get(['blocklist', 'workHours', 'uiTheme']) as {
       blocklist?: string[];
       workHours?: typeof DEFAULT_WORK_HOURS;
+      uiTheme?:   UITheme;
     };
 
-  (document.getElementById('wh-enabled') as HTMLInputElement).checked = workHours.enabled;
-  (document.getElementById('wh-start')   as HTMLInputElement).value   = workHours.start;
-  (document.getElementById('wh-end')     as HTMLInputElement).value   = workHours.end;
+  (document.getElementById('wh-enabled')      as HTMLInputElement).checked = workHours.enabled;
+  (document.getElementById('wh-start')        as HTMLInputElement).value   = workHours.start;
+  (document.getElementById('wh-end')          as HTMLInputElement).value   = workHours.end;
+  (document.getElementById('ui-theme-select') as HTMLSelectElement).value  = uiTheme;
   document.getElementById('wh-config')!.classList.toggle('disabled', !workHours.enabled);
 
   for (let d = 0; d < 7; d++) {
@@ -52,6 +55,13 @@ async function load(): Promise<void> {
 
   renderBlocklist(blocklist);
 }
+
+document.getElementById('ui-theme-select')!.addEventListener('change', async e => {
+  const theme = (e.target as HTMLSelectElement).value as UITheme;
+  await chrome.storage.local.set({ uiTheme: theme });
+  applyTheme(theme);
+  toast('Theme saved ✓');
+});
 
 async function saveWorkHours(): Promise<void> {
   const enabled = (document.getElementById('wh-enabled') as HTMLInputElement).checked;
@@ -378,6 +388,7 @@ document.getElementById('reset-tank-btn')!.addEventListener('click', async () =>
     lastDailyClaim: '', lastFocusDate: '',
     foodSupply: 15, foodLastRefill: now,
     tankBackground: 'default', unlockedBackgrounds: ['default'],
+    uiTheme: 'ocean',
   });
   toast('Tank reset. Two little fry are ready to grow!');
 });
@@ -385,4 +396,5 @@ document.getElementById('reset-tank-btn')!.addEventListener('click', async () =>
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 document.body.insertAdjacentHTML('beforeend', '<div id="toast"></div>');
+loadAndApplyTheme();
 load();

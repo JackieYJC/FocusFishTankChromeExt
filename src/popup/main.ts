@@ -6,6 +6,7 @@ import { poll, tickLocalSeconds } from './game-state';
 import { initShopPane, renderShopPanePreviews, updateShopPaneBalance } from './shop-pane';
 import { initDebugPanel }      from './debug';
 import { MAX_FOOD, FOOD_REFILL_SECS }       from '../constants';
+import { loadAndApplyTheme }   from '../theme';
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 
@@ -56,14 +57,19 @@ function updateFoodUI(): void {
 
 async function initFoodSystem(): Promise<void> {
   try {
-    const { foodSupply = MAX_FOOD, foodLastRefill = Date.now() } =
-      await chrome.storage.local.get(['foodSupply', 'foodLastRefill']) as {
-        foodSupply?: number; foodLastRefill?: number;
-      };
+    const stored = await chrome.storage.local.get(['foodSupply', 'foodLastRefill']) as {
+      foodSupply?: number; foodLastRefill?: number;
+    };
+    const isFirstOpen = stored.foodLastRefill === undefined;
+    const foodSupply  = stored.foodSupply ?? MAX_FOOD;
+    const now         = Date.now();
+    // Sanitize: treat missing (0) or future timestamps as now so elapsed >= 0
+    const rawRefill      = stored.foodLastRefill ?? 0;
+    const foodLastRefill = (rawRefill === 0 || rawRefill > now) ? now : rawRefill;
 
     // Compute how many pellets have replenished while popup was closed
-    const elapsed     = (Date.now() - foodLastRefill) / 1000;
-    const replenished = Math.floor(elapsed / FOOD_REFILL_SECS);
+    const elapsed     = (now - foodLastRefill) / 1000;
+    const replenished = Math.max(0, Math.floor(elapsed / FOOD_REFILL_SECS));
     const newSupply   = Math.min(MAX_FOOD, foodSupply + replenished);
     const newRefill   = replenished > 0
       ? foodLastRefill + replenished * FOOD_REFILL_SECS * 1000
@@ -72,12 +78,14 @@ async function initFoodSystem(): Promise<void> {
     gameState.foodSupply     = newSupply;
     gameState.foodLastRefill = newRefill;
 
-    if (replenished > 0) {
+    // Always write on first open so the timestamp is anchored
+    if (isFirstOpen || replenished > 0) {
       await chrome.storage.local.set({ foodSupply: newSupply, foodLastRefill: newRefill });
     }
   } catch {
     gameState.foodSupply     = MAX_FOOD;
     gameState.foodLastRefill = Date.now();
+    await chrome.storage.local.set({ foodSupply: MAX_FOOD, foodLastRefill: Date.now() }).catch(() => {});
   }
   updateFoodUI();
 }
@@ -250,6 +258,7 @@ function initDailyBtn(): void {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
+loadAndApplyTheme();
 initDebugPanel();
 initShopPane();
 initDailyBtn();
