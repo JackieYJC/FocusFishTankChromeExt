@@ -3,7 +3,7 @@
 import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, GAME_BALANCE } from './constants';
 import type { WorkHours } from './types';
 
-const { TICK_SECS, DECAY, GAIN, SCORE_FLOOR, COIN_RATE } = GAME_BALANCE;
+const { TICK_SECS, DECAY, GAIN, SCORE_FLOOR, COIN_RATE, IDLE_COIN_RATE, PASSIVE_COIN_CAP } = GAME_BALANCE;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -108,14 +108,19 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
     });
   }
 
-  // Time counters always update regardless of work hours
+  // Time counters always update regardless of work hours.
+  // Passive coin replenishment still accrues when outside work hours, capped at PASSIVE_COIN_CAP.
   if (!isWithinWorkHours(workHours)) {
+    const coinsOow   = (data['coins'] as number) ?? 0;
+    const idleGain   = coinsOow < PASSIVE_COIN_CAP ? IDLE_COIN_RATE : 0;
+    const newCoinsOow = Math.round((coinsOow + idleGain) * 1000) / 1000;
     await chrome.storage.local.set({
       focusSecs:      newFocusSecs,
       distractedSecs: newDistractSecs,
       isDistracting:  distracting,
       currentSite:    site,
       lastFocusDate:  today,
+      coins:          newCoinsOow,
     });
     return;
   }
@@ -128,8 +133,11 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
     ? Math.max(SCORE_FLOOR, focusScore - DECAY)
     : Math.min(100, focusScore + GAIN);
 
-  const coinGain = distracting ? 0 : (focusScore / 100) * COIN_RATE;
-  const newCoins = Math.round((coins + coinGain) * 1000) / 1000;
+  // Active gain: full focus rate when not distracting; zero when distracting
+  // Passive gain: slow idle rate always, but only while below the passive cap
+  const activeGain  = distracting ? 0 : (focusScore / 100) * COIN_RATE;
+  const passiveGain = coins < PASSIVE_COIN_CAP ? IDLE_COIN_RATE : 0;
+  const newCoins    = Math.round((coins + activeGain + passiveGain) * 1000) / 1000;
 
   // ── Focus streak reminder ─────────────────────────────────────────────────
   // Fires every ~25 minutes of uninterrupted focus.
