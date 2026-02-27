@@ -21,6 +21,7 @@ export const GAME_BALANCE = {
   TICK_SECS:         5,
   DECAY:             1.5,   // score lost per tick on a distracting site
   GAIN:              0.4,   // score gained per tick on a focused site
+  SCORE_FLOOR:       50,    // focus score will never decay below this (fish stay healthy overnight)
   COIN_RATE:         10 / 12,  // ~0.833 coins per tick → 10 coins/min at focusScore 100
   // One full growth stage in ~5 min of 100% focus at 60 fps (was 8 min)
   BASE_GROWTH_RATE:  100 / (5 * 60 * 60),

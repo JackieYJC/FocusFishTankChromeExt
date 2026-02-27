@@ -3,7 +3,7 @@
 import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, GAME_BALANCE } from './constants';
 import type { WorkHours } from './types';
 
-const { TICK_SECS, DECAY, GAIN, COIN_RATE } = GAME_BALANCE;
+const { TICK_SECS, DECAY, GAIN, SCORE_FLOOR, COIN_RATE } = GAME_BALANCE;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const coins      = (data['coins']      as number) ?? 0;
 
   const newScore = distracting
-    ? Math.max(0,   focusScore - DECAY)
+    ? Math.max(SCORE_FLOOR, focusScore - DECAY)
     : Math.min(100, focusScore + GAIN);
 
   const coinGain = distracting ? 0 : (focusScore / 100) * COIN_RATE;
