@@ -295,6 +295,74 @@ body {
   font-size: 12px; font-weight: 600; white-space: nowrap; flex-shrink: 0;
 }
 
+/* ── Crew pane ────────────────────────────────────────────────────────────── */
+#crew-pane[hidden] { display: none !important; }
+
+#crew-pane {
+  background: var(--bg-panel);
+  overflow-y: auto;
+  max-height: 250px;
+  padding: 7px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg-inset);
+}
+#crew-pane::-webkit-scrollbar { width: 5px; }
+#crew-pane::-webkit-scrollbar-track { background: var(--bg-inset); }
+#crew-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.crew-section-label {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-dim); padding: 4px 0 2px;
+}
+.crew-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.crew-preview { border-radius: 5px; flex-shrink: 0; }
+.crew-info {
+  flex: 1; display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.crew-name-row { display: flex; align-items: center; gap: 6px; }
+.crew-name {
+  font-size: 13px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.crew-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 4px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.crew-badge[data-state="fry"]      { color: #4dd8aa; background: rgba(0,200,150,0.15); }
+.crew-badge[data-state="juvenile"] { color: #6699ff; background: rgba(80,130,255,0.15); }
+.crew-badge[data-state="adult"]    { color: #4caf50; background: rgba(76,175,80,0.15); }
+.crew-badge[data-state="dead"]     { color: #999;    background: rgba(100,100,100,0.18); }
+.crew-badge[data-state="well"]     { color: #4caf50; background: rgba(76,175,80,0.15); }
+.crew-badge[data-state="alive"]    { color: #ff9800; background: rgba(255,152,0,0.15); }
+.crew-badge[data-state="chest"]    { color: #f5c842; background: rgba(245,200,66,0.12); }
+.crew-age { font-size: 11px; color: var(--text-muted); }
+.crew-bar-row { display: flex; align-items: center; gap: 6px; }
+.crew-bar-wrap {
+  flex: 1; height: 4px;
+  background: var(--bg-deep); border-radius: 3px; overflow: hidden;
+}
+.crew-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.crew-bar-val {
+  font-size: 10px; color: var(--text-muted);
+  white-space: nowrap; min-width: 56px; text-align: right;
+}
+.crew-empty {
+  font-size: 12px; color: var(--text-dim);
+  text-align: center; padding: 20px 0;
+}
+
 /* ── Panel ────────────────────────────────────────────────────────────────── */
 /* display:flex on #panel and #shop-pane beats the UA [hidden]{display:none},
    so we need to re-enforce it at higher specificity */

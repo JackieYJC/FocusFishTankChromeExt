@@ -1,6 +1,7 @@
 // ─── Popup entry point ─────────────────────────────────────────────────────────
 
 import { canvas, fish, foodPellets, ripples, render, initFish, initDecorations, initBackground, decorations, gameState, saveDecorations, Decoration, W, H } from './tank';
+import { drawFishPreview, drawDecorationPreview } from '../fish-renderer';
 import { FoodPellet, Ripple }  from './tank';
 import { poll, tickLocalSeconds } from './game-state';
 import { initShopPane, renderShopPanePreviews, updateShopPaneBalance } from './shop-pane';
@@ -16,8 +17,10 @@ function switchTab(name: string): void {
   );
   const panel    = document.getElementById('panel')!;
   const shopPane = document.getElementById('shop-pane')!;
+  const crewPane = document.getElementById('crew-pane')!;
   panel.hidden    = name !== 'tank';
   shopPane.hidden = name !== 'shop';
+  crewPane.hidden = name !== 'crew';
 
   if (name === 'shop') {
     chrome.storage.local.get('coins')
@@ -25,6 +28,7 @@ function switchTab(name: string): void {
       .catch(() => {});
     renderShopPanePreviews();
   }
+  if (name === 'crew') renderCrewPane();
 }
 
 document.querySelectorAll<HTMLElement>('.tab-btn').forEach(btn => {
@@ -423,6 +427,167 @@ document.getElementById('away-dismiss')!.addEventListener('click', () => {
 
 window.addEventListener('pagehide', saveAwaySnap);
 
+// ─── Crew pane ────────────────────────────────────────────────────────────────
+
+const FISH_DISPLAY: Record<string, string> = {
+  basic: 'Classic', long: 'Tetra', round: 'Puffer', angel: 'Angelfish',
+  betta: 'Tang', seahorse: 'Seahorse', dragon: 'Dragonfish',
+};
+
+const DEC_DISPLAY: Record<string, string> = {
+  kelp: 'Sea Kelp', coral_fan: 'Fan Coral', coral_branch: 'Branch Coral',
+  anemone: 'Anemone', treasure_chest: 'Treasure Chest',
+};
+
+function fmtAge(bornAt: number): string {
+  const mins = Math.floor((Date.now() - bornAt) / 60000);
+  if (mins < 1) return 'just born';
+  if (mins < 60) return `${mins}m old`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  if (h < 24) return m > 0 ? `${h}h ${m}m old` : `${h}h old`;
+  const d = Math.floor(h / 24), rh = h % 24;
+  return rh > 0 ? `${d}d ${rh}h old` : `${d}d old`;
+}
+
+function renderCrewPane(): void {
+  const pane = document.getElementById('crew-pane')!;
+  pane.innerHTML = '';
+
+  if (fish.length === 0 && decorations.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'crew-empty';
+    empty.textContent = 'No fish or decorations yet. Visit the Shop!';
+    pane.appendChild(empty);
+    return;
+  }
+
+  if (fish.length > 0) {
+    const lbl = document.createElement('p');
+    lbl.className = 'crew-section-label';
+    lbl.textContent = '🐟 Fish';
+    pane.appendChild(lbl);
+
+    for (const f of fish) {
+      const card = document.createElement('div');
+      card.className = 'crew-card';
+
+      // Preview canvas
+      const cv = document.createElement('canvas');
+      cv.className = 'crew-preview';
+      cv.width = 36; cv.height = 36;
+      drawFishPreview(cv, f.type, f.hue, f.stage);
+      card.appendChild(cv);
+
+      // Info column
+      const info = document.createElement('div');
+      info.className = 'crew-info';
+
+      // Name + stage badge
+      const nameRow = document.createElement('div');
+      nameRow.className = 'crew-name-row';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'crew-name';
+      nameEl.textContent = FISH_DISPLAY[f.type] ?? f.type;
+      const badge = document.createElement('span');
+      badge.className = 'crew-badge';
+      badge.dataset['state'] = f.stage;
+      badge.textContent = f.stage.charAt(0).toUpperCase() + f.stage.slice(1);
+      nameRow.append(nameEl, badge);
+      info.appendChild(nameRow);
+
+      // Age
+      const ageEl = document.createElement('span');
+      ageEl.className = 'crew-age';
+      ageEl.textContent = fmtAge(f.bornAt);
+      info.appendChild(ageEl);
+
+      // HP bar (skip for dead fish)
+      if (f.stage !== 'dead') {
+        const hpRow = document.createElement('div');
+        hpRow.className = 'crew-bar-row';
+        const hpWrap = document.createElement('div');
+        hpWrap.className = 'crew-bar-wrap';
+        const hpBar = document.createElement('div');
+        hpBar.className = 'crew-bar';
+        hpBar.style.width = Math.round(f.health) + '%';
+        hpBar.style.background = f.health > 65 ? '#4caf50' : f.health > 35 ? '#ff9800' : '#f44336';
+        hpWrap.appendChild(hpBar);
+        const hpVal = document.createElement('span');
+        hpVal.className = 'crew-bar-val';
+        hpVal.textContent = `HP ${Math.round(f.health)}`;
+        hpRow.append(hpWrap, hpVal);
+        info.appendChild(hpRow);
+      }
+
+      // Growth bar (fry / juvenile only)
+      if (f.stage === 'fry' || f.stage === 'juvenile') {
+        const gRow = document.createElement('div');
+        gRow.className = 'crew-bar-row';
+        const gWrap = document.createElement('div');
+        gWrap.className = 'crew-bar-wrap';
+        const gBar = document.createElement('div');
+        gBar.className = 'crew-bar';
+        gBar.style.width = Math.round(f.growth) + '%';
+        gBar.style.background = f.stage === 'fry' ? '#4dd8aa' : '#6699ff';
+        gWrap.appendChild(gBar);
+        const gVal = document.createElement('span');
+        gVal.className = 'crew-bar-val';
+        gVal.textContent = `Growth ${Math.round(f.growth)}%`;
+        gRow.append(gWrap, gVal);
+        info.appendChild(gRow);
+      }
+
+      card.appendChild(info);
+      pane.appendChild(card);
+    }
+  }
+
+  if (decorations.length > 0) {
+    const lbl = document.createElement('p');
+    lbl.className = 'crew-section-label';
+    lbl.textContent = '🪸 Decorations';
+    pane.appendChild(lbl);
+
+    for (const d of decorations) {
+      const card = document.createElement('div');
+      card.className = 'crew-card';
+
+      const cv = document.createElement('canvas');
+      cv.className = 'crew-preview';
+      cv.width = 36; cv.height = 36;
+      drawDecorationPreview(cv, d.type, d.hue);
+      card.appendChild(cv);
+
+      const info = document.createElement('div');
+      info.className = 'crew-info';
+
+      const nameRow = document.createElement('div');
+      nameRow.className = 'crew-name-row';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'crew-name';
+      nameEl.textContent = DEC_DISPLAY[d.type] ?? d.type;
+      const badge = document.createElement('span');
+      badge.className = 'crew-badge';
+      if (d.type === 'treasure_chest') {
+        badge.dataset['state'] = 'chest';
+        badge.textContent = 'Unaffected';
+      } else {
+        const health = d.debugHealthState !== null
+          ? (d.debugHealthState === 0 ? 100 : d.debugHealthState === 1 ? 50 : 15)
+          : gameState.tankHealth;
+        const state = health >= 60 ? 'well' : health >= 30 ? 'alive' : 'dead';
+        badge.dataset['state'] = state;
+        badge.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+      }
+      nameRow.append(nameEl, badge);
+      info.appendChild(nameRow);
+
+      card.appendChild(info);
+      pane.appendChild(card);
+    }
+  }
+}
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 loadAndApplyTheme();
@@ -446,4 +611,8 @@ initFish().then(async () => {
   poll();
   setInterval(poll, 2000);
   setInterval(tickLocalSeconds, 1000);
+  // Keep crew pane fresh while it's open
+  setInterval(() => {
+    if (!document.getElementById('crew-pane')!.hidden) renderCrewPane();
+  }, 2000);
 });
