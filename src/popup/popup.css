@@ -514,8 +514,11 @@ body {
   z-index: 50;
   align-items: center; justify-content: center;
   padding: 20px;
+  transition: opacity 0.5s ease;
+  cursor: pointer;    /* click backdrop to dismiss early */
 }
-#away-modal.show { display: flex; }
+#away-modal.show   { display: flex; }
+#away-modal.fading { opacity: 0; }
 #away-card {
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -525,6 +528,7 @@ body {
   display: flex; flex-direction: column; gap: 10px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.55);
   animation: bannerIn 0.25s ease-out;
+  cursor: default;    /* don't show pointer over card content */
 }
 #away-title {
   font-size: 14px; font-weight: 700; color: var(--text);
@@ -534,14 +538,6 @@ body {
   display: flex; flex-direction: column; gap: 5px;
 }
 #away-body p { line-height: 1.5; }
-#away-dismiss {
-  padding: 7px; width: 100%;
-  background: var(--bg-inset); color: var(--accent);
-  border: 1px solid var(--border); border-radius: 8px;
-  cursor: pointer; font-size: 13px; font-weight: 600;
-  transition: background 0.2s;
-}
-#away-dismiss:hover { background: var(--bg-deep); }
 
 /* ── Popup toast ───────────────────────────────────────────────────────────── */
 #popup-toast {

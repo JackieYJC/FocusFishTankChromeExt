@@ -393,6 +393,19 @@ function showAwayModal(gapMins: number, coinsEarned: number, scoreDelta: number)
 
   body.innerHTML = lines.map(l => `<p>${l}</p>`).join('');
   modal.classList.add('show');
+  // Auto-dismiss after 6 s
+  setTimeout(dismissAwayModal, 6000);
+}
+
+let _awayDismissTimer = 0;
+
+function dismissAwayModal(): void {
+  clearTimeout(_awayDismissTimer);
+  const modal = document.getElementById('away-modal')!;
+  modal.classList.add('fading');
+  _awayDismissTimer = window.setTimeout(() => {
+    modal.classList.remove('show', 'fading');
+  }, 500);
 }
 
 async function checkAwayMessage(): Promise<void> {
@@ -421,9 +434,9 @@ function saveAwaySnap(): void {
   }).catch(() => {});
 }
 
-document.getElementById('away-dismiss')!.addEventListener('click', () => {
-  document.getElementById('away-modal')!.classList.remove('show');
-});
+// Click the backdrop (not the card) to dismiss early
+document.getElementById('away-modal')!.addEventListener('click', dismissAwayModal);
+document.getElementById('away-card')!.addEventListener('click', e => e.stopPropagation());
 
 window.addEventListener('pagehide', saveAwaySnap);
 
