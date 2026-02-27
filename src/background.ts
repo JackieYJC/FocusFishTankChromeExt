@@ -109,11 +109,14 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   }
 
   // Time counters always update regardless of work hours.
-  // Passive coin replenishment still accrues when outside work hours, capped at PASSIVE_COIN_CAP.
+  // Outside work hours: passive coin accrual + score recovers to SCORE_FLOOR if below it.
   if (!isWithinWorkHours(workHours)) {
-    const coinsOow   = (data['coins'] as number) ?? 0;
-    const idleGain   = coinsOow < PASSIVE_COIN_CAP ? IDLE_COIN_RATE : 0;
+    const coinsOow    = (data['coins']      as number) ?? 0;
+    const scoreOow    = (data['focusScore'] as number) ?? 70;
+    const idleGain    = coinsOow < PASSIVE_COIN_CAP ? IDLE_COIN_RATE : 0;
     const newCoinsOow = Math.round((coinsOow + idleGain) * 1000) / 1000;
+    // Clamp score up to the baseline floor so fish recover overnight
+    const newScoreOow = Math.max(SCORE_FLOOR, scoreOow);
     await chrome.storage.local.set({
       focusSecs:      newFocusSecs,
       distractedSecs: newDistractSecs,
@@ -121,6 +124,7 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
       currentSite:    site,
       lastFocusDate:  today,
       coins:          newCoinsOow,
+      focusScore:     newScoreOow,
     });
     return;
   }
@@ -129,8 +133,9 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const focusScore = (data['focusScore'] as number) ?? 70;
   const coins      = (data['coins']      as number) ?? 0;
 
+  // Distracting during work hours → full punishment, can decay all the way to 0
   const newScore = distracting
-    ? Math.max(SCORE_FLOOR, focusScore - DECAY)
+    ? Math.max(0, focusScore - DECAY)
     : Math.min(100, focusScore + GAIN);
 
   // Active gain: full focus rate when not distracting; zero when distracting
