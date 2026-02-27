@@ -45,10 +45,11 @@ export interface WorkHours {
 
 /** Subset of chrome.storage.local used by applyState / poll */
 export interface AppState {
-  focusScore:     number;
-  focusSecs:      number;
-  distractedSecs: number;
-  isDistracting:  boolean;
-  currentSite:    string;
-  coins:          number;
+  focusScore:       number;
+  focusSecs:        number;
+  distractedSecs:   number;
+  isDistracting:    boolean;
+  currentSite:      string;
+  coins:            number;
+  withinWorkHours?: boolean;  // false = work-hours enabled + currently outside them
 }

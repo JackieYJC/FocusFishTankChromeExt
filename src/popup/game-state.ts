@@ -1,8 +1,20 @@
 // ─── Game state — storage sync, UI feedback ────────────────────────────────────
 
 import { gameState, fish, saveFish, initFish, checkPendingFish, decorations, saveDecorations } from './tank';
-import type { AppState, FishSnapshot, DecorationSnapshot }                                     from '../types';
-import { DEFAULT_BLOCKLIST, GAME_BALANCE }                                                      from '../constants';
+import type { AppState, FishSnapshot, DecorationSnapshot, WorkHours }                           from '../types';
+import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, GAME_BALANCE }                                  from '../constants';
+
+const { IDLE_COIN_RATE, TICK_SECS } = GAME_BALANCE;
+
+function isWithinWorkHours({ enabled, start, end, days }: WorkHours): boolean {
+  if (!enabled) return true;
+  const now = new Date();
+  if (!days.includes(now.getDay())) return false;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const nowMins  = now.getHours() * 60 + now.getMinutes();
+  return nowMins >= sh * 60 + sm && nowMins < eh * 60 + em;
+}
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -37,7 +49,8 @@ export function spawnCoinFloat(text: string): void {
 // ─── Apply storage state to DOM ───────────────────────────────────────────────
 
 export function applyState({ focusScore = 70, focusSecs = 0,
-  distractedSecs = 0, isDistracting = false, currentSite = '', coins = 0 }: Partial<AppState>): void {
+  distractedSecs = 0, isDistracting = false, currentSite = '',
+  coins = 0, withinWorkHours = true }: Partial<AppState>): void {
 
   gameState.health = focusScore;
   if (!gameState.debugHealthLocked) {
@@ -54,20 +67,32 @@ export function applyState({ focusScore = 70, focusSecs = 0,
   val.textContent = String(Math.round(focusScore));
   val.style.color = scoreColor(focusScore);
 
-  const dot = document.getElementById('status-dot')!;
-  const txt = document.getElementById('status-text')!;
-  if (!currentSite)       { dot.className = 'neutral';    txt.textContent = 'No active tab'; }
-  else if (isDistracting) { dot.className = 'distracted'; txt.textContent = `Distracted — ${currentSite}`; }
-  else                    { dot.className = 'focused';    txt.textContent = `Focused — ${currentSite}`;    }
+  const dot   = document.getElementById('status-dot')!;
+  const txt   = document.getElementById('status-text')!;
+  const badge = document.getElementById('off-hours-badge') as HTMLElement | null;
+  const oow   = !withinWorkHours; // outside work hours
+
+  if (!currentSite) {
+    dot.className    = oow ? 'off-hours' : 'neutral';
+    txt.textContent  = 'No active tab';
+  } else if (isDistracting) {
+    dot.className    = oow ? 'off-hours' : 'distracted';
+    txt.textContent  = oow ? `Browsing — ${currentSite}` : `Distracted — ${currentSite}`;
+  } else {
+    dot.className    = 'focused';
+    txt.textContent  = `Focused — ${currentSite}`;
+  }
+  if (badge) badge.hidden = !oow;
 
   document.getElementById('focus-time')!.textContent      = fmtTime(focusSecs);
   document.getElementById('distracted-time')!.textContent = fmtTime(distractedSecs);
 
-  // Highlight the active time cell
+  // Highlight the active time cell; off-hours distracted uses purple instead of red
   const focusCell    = document.getElementById('focus-time')!.closest<HTMLElement>('.time-cell')!;
   const distractCell = document.getElementById('distracted-time')!.closest<HTMLElement>('.time-cell')!;
   focusCell.classList.toggle('state-focused',    !isDistracting && !!currentSite);
-  distractCell.classList.toggle('state-distracted', isDistracting);
+  distractCell.classList.toggle('state-distracted', isDistracting && withinWorkHours);
+  distractCell.classList.toggle('state-off-dist',   isDistracting && oow);
   document.getElementById('coin-value')!.textContent      = String(Math.floor(coins));
 
   // Notify shop pane of balance change (dispatched as custom event to avoid circular import)
@@ -78,8 +103,9 @@ export function applyState({ focusScore = 70, focusSecs = 0,
     if (delta > 0.005) spawnCoinFloat(`+${delta.toFixed(2)}`);
   }
   gameState.lastCoins = coins;
-  _coinFocusScore  = focusScore;
-  _coinDistracted  = isDistracting;
+  _coinFocusScore      = focusScore;
+  _coinDistracted      = isDistracting;
+  _coinWithinWorkHours = withinWorkHours;
   updateCoinNextUI();
 
   // Notify mission banner of state change
@@ -88,14 +114,22 @@ export function applyState({ focusScore = 70, focusSecs = 0,
 
 // ─── Coin countdown ───────────────────────────────────────────────────────────
 
-let _coinLastTick   = 0;   // Date.now() of last confirmed coin accrual
-let _coinFocusScore = 70;  // latest focusScore for rate calculation
-let _coinDistracted = false;
+let _coinLastTick       = 0;     // Date.now() of last confirmed coin accrual
+let _coinFocusScore     = 70;    // latest focusScore for rate calculation
+let _coinDistracted     = false;
+let _coinWithinWorkHours = true; // false = outside work hours
 
 function updateCoinNextUI(): void {
   const el = document.getElementById('coin-next');
   if (!el) return;
-  if (_coinDistracted) { el.textContent = '⏸ paused'; return; }
+  // Off-hours: coins still trickle passively even when on a blocked site
+  if (_coinDistracted && _coinWithinWorkHours) { el.textContent = '⏸ paused'; return; }
+  if (_coinDistracted && !_coinWithinWorkHours) {
+    // Passive drip: IDLE_COIN_RATE per tick → coins per minute
+    const passivePerMin = Math.round(IDLE_COIN_RATE * (60 / TICK_SECS) * 10) / 10;
+    el.textContent = `~${passivePerMin}/min`;
+    return;
+  }
   const coinsPerMin = Math.round((_coinFocusScore / 100) * 10);
   if (_coinLastTick > 0) {
     const elapsed  = (Date.now() - _coinLastTick) / 1000;
@@ -148,7 +182,7 @@ export async function poll(): Promise<void> {
       // legacy migration support
       'totalFocusMinutes', 'totalDistractedMinutes',
       'isDistracting', 'currentSite', 'coins',
-      'tankFish', 'tankDecorations', 'blocklist', 'lastFocusDate',
+      'tankFish', 'tankDecorations', 'blocklist', 'lastFocusDate', 'workHours',
     ]);
 
     // Seconds — with legacy fallback
@@ -212,12 +246,16 @@ export async function poll(): Promise<void> {
       chrome.storage.local.set(writeback).catch(() => {});
     }
 
+    const workHours     = (data['workHours'] as WorkHours | undefined) ?? DEFAULT_WORK_HOURS;
+    const withinWorkHours = isWithinWorkHours(workHours);
+
     applyState({
       ...(data as Partial<AppState>),
       focusSecs:      Math.floor(_localFocusSecs),
       distractedSecs: Math.floor(_localDistSecs),
-      isDistracting: rtIsDistracting,
-      currentSite:   rtCurrentSite,
+      isDistracting:  rtIsDistracting,
+      currentSite:    rtCurrentSite,
+      withinWorkHours,
     });
 
     // Sync fish: remove any whose id is no longer in storage (e.g. released from settings)

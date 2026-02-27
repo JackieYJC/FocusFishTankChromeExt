@@ -400,6 +400,16 @@ body {
 #status-dot.focused    { background: #4caf50; box-shadow: 0 0 6px #4caf5088; }
 #status-dot.distracted { background: #f44336; box-shadow: 0 0 6px #f4433688; }
 #status-dot.neutral    { background: #ff9800; }
+#status-dot.off-hours  { background: #a855f7; box-shadow: 0 0 6px #a855f788; }
+
+#off-hours-badge {
+  margin-left: auto;
+  padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; letter-spacing: 0.3px; white-space: nowrap; flex-shrink: 0;
+  background: rgba(168,85,247,0.12);
+  color: #c084fc;
+  border: 1px solid rgba(168,85,247,0.25);
+}
 
 #time-row {
   display: flex; align-items: center;
@@ -421,6 +431,10 @@ body {
 .time-cell.state-distracted .label { color: #f44336; }
 .time-cell.state-focused    .time-val { color: #6dd470; }
 .time-cell.state-distracted .time-val { color: #f77; }
+/* Off-hours distracted — purple instead of red (no score penalty outside work hours) */
+.time-cell.state-off-dist            { background: rgba(168,85,247,0.13); border-radius: 8px; }
+.time-cell.state-off-dist .label     { color: #c084fc; }
+.time-cell.state-off-dist .time-val  { color: #d4a8ff; }
 
 /* ── Food row ─────────────────────────────────────────────────────────────── */
 #food-row {
