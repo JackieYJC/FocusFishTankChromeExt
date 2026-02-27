@@ -319,8 +319,8 @@ input[type="time"]:focus { outline: none; border-color: var(--accent); }
 
 /* ── Buy Me a Coffee ─────────────────────────────────────────────────────── */
 #bmc-btn {
-  margin-top: auto;
   display: block;
+  margin-top: auto;
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 12px; font-weight: 500;

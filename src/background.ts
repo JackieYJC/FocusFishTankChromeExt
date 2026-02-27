@@ -96,6 +96,18 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const newFocusSecs    = focusSecs      + (distracting ? 0        : TICK_SECS);
   const newDistractSecs = distractedSecs + (distracting ? TICK_SECS : 0);
 
+  // ── Distraction alert ─────────────────────────────────────────────────────
+  // Fires once when the user first lands on a blocked site.
+  // Runs BEFORE the work-hours gate so it always triggers, even outside work hours.
+  if (!prevIsDistracting && distracting) {
+    chrome.notifications.create('distraction', {
+      type:    'basic',
+      iconUrl: 'icons/icon48.png',
+      title:   'Distraction detected!',
+      message: `${site} is on your blocklist. Your fish are counting on you!`,
+    });
+  }
+
   // Time counters always update regardless of work hours
   if (!isWithinWorkHours(workHours)) {
     await chrome.storage.local.set({
@@ -119,19 +131,8 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const coinGain = distracting ? 0 : (focusScore / 100) * COIN_RATE;
   const newCoins = Math.round((coins + coinGain) * 1000) / 1000;
 
-  // ── Notifications ─────────────────────────────────────────────────────────
-
-  // Distraction alert: fires once when the user first lands on a blocked site
-  if (!prevIsDistracting && distracting) {
-    chrome.notifications.create('distraction', {
-      type:    'basic',
-      iconUrl: 'icons/icon48.png',
-      title:   'Distraction detected!',
-      message: `${site} is on your blocklist. Your fish are counting on you!`,
-    });
-  }
-
-  // Focus reminder: fires every ~25 minutes of uninterrupted focus
+  // ── Focus streak reminder ─────────────────────────────────────────────────
+  // Fires every ~25 minutes of uninterrupted focus.
   const REMINDER_TICKS = 300; // 300 × 5 s = 25 min
   const FOCUS_MESSAGES = [
     'Your fish are thriving! Keep it up.',

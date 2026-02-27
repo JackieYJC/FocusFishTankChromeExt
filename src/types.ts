@@ -1,6 +1,6 @@
 // ─── Shared domain types ────────────────────────────────────────────────────
 
-export type FishType  = 'basic' | 'long' | 'round' | 'angel' | 'betta' | 'dragon';
+export type FishType  = 'basic' | 'long' | 'round' | 'angel' | 'betta' | 'dragon' | 'seahorse';
 export type FishStage = 'fry' | 'juvenile' | 'adult' | 'dead';
 
 export type DecorationType = 'kelp' | 'coral_fan' | 'coral_branch' | 'anemone' | 'treasure_chest';

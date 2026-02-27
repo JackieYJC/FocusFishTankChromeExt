@@ -33,6 +33,9 @@ document.querySelectorAll<HTMLElement>('.tab-btn').forEach(btn => {
 
 // ─── Food system ──────────────────────────────────────────────────────────────
 
+/** True while the current tab is on the distraction blocklist (updated via state-applied). */
+let _rtDistracted = false;
+
 function updateFoodUI(): void {
   const supply = gameState.foodSupply;
   const bar    = document.getElementById('food-bar') as HTMLDivElement | null;
@@ -47,8 +50,9 @@ function updateFoodUI(): void {
 
   if (supply >= MAX_FOOD) {
     nextEl.textContent = 'full';
+  } else if (_rtDistracted) {
+    nextEl.textContent = '⏸ paused';
   } else {
-    // seconds until the next +1
     const elapsed = (Date.now() - gameState.foodLastRefill) / 1000;
     const secsUntilNext = Math.max(0, Math.ceil(FOOD_REFILL_SECS - (elapsed % FOOD_REFILL_SECS)));
     nextEl.textContent = `+1 in ${secsUntilNext}s`;
@@ -93,6 +97,8 @@ async function initFoodSystem(): Promise<void> {
 /** Called every ~10s to replenish food and refresh the countdown timer. */
 function tickFood(): void {
   if (gameState.foodSupply >= MAX_FOOD) { updateFoodUI(); return; }
+  // Food does not replenish while on a distracting site
+  if (_rtDistracted) { updateFoodUI(); return; }
   const elapsed     = (Date.now() - gameState.foodLastRefill) / 1000;
   const replenished = Math.floor(elapsed / FOOD_REFILL_SECS);
   if (replenished > 0) {
@@ -302,6 +308,121 @@ function initDailyBtn(): void {
   setInterval(refresh, 60_000);
 }
 
+// ─── Mission banner ────────────────────────────────────────────────────────────
+
+let _bannerTimer: ReturnType<typeof setTimeout> | undefined;
+let _lastBannerState = '';
+
+function updateMissionBanner(isDistracting: boolean): void {
+  const supply = gameState.foodSupply;
+  let msg      = '';
+  let stateKey = '';
+
+  if (isDistracting && supply <= 0) {
+    stateKey = 'distracted_nofood';
+    msg = "⚠️ You're distracted and out of food — focus to replenish!";
+  } else if (isDistracting) {
+    stateKey = 'distracted';
+    msg = "⚠️ Close that distracting tab! Your fish are counting on you.";
+  } else if (supply <= 0) {
+    stateKey = 'nofood';
+    msg = "⏳ Out of food — stay focused and it'll start replenishing!";
+  } else if (supply < 4) {
+    stateKey = 'lowfood';
+    msg = "🥘 Food is running low — click the tank to feed your fish!";
+  } else {
+    _lastBannerState = 'ok';
+    return; // no urgent message; let any existing banner fade naturally
+  }
+
+  if (stateKey !== _lastBannerState) {
+    _lastBannerState = stateKey;
+    const banner = document.getElementById('mission-banner')!;
+    banner.textContent = msg;
+    banner.classList.add('show');
+    clearTimeout(_bannerTimer);
+    _bannerTimer = setTimeout(() => banner.classList.remove('show'), 5000);
+  }
+}
+
+document.addEventListener('state-applied', (e) => {
+  const { isDistracting } = (e as CustomEvent<{ isDistracting: boolean }>).detail;
+  // When returning to focus from distraction, anchor the food refill timer to now
+  if (_rtDistracted && !isDistracting && gameState.foodSupply < MAX_FOOD) {
+    gameState.foodLastRefill = Date.now();
+    chrome.storage.local.set({ foodLastRefill: gameState.foodLastRefill }).catch(() => {});
+  }
+  _rtDistracted = isDistracting;
+  updateMissionBanner(isDistracting);
+});
+
+// ─── While you were away ───────────────────────────────────────────────────────
+
+const FLAVOR_EVENTS = [
+  'A curious seahorse peeked through the glass.',
+  'A gentle current swept through the tank.',
+  'A tiny snail crept slowly across the glass.',
+  'The bubbles were extra bubbly today.',
+  'A mysterious shadow drifted past outside.',
+  'The kelp swayed in a quiet underwater breeze.',
+  'Some algae tried to creep in from the corner.',
+  'A school of tiny fish swam by outside.',
+  'The water shimmered with an eerie calm.',
+];
+
+function showAwayModal(gapMins: number, coinsEarned: number, scoreDelta: number): void {
+  const modal = document.getElementById('away-modal')!;
+  const body  = document.getElementById('away-body')!;
+  const lines: string[] = [];
+
+  const h = Math.floor(gapMins / 60);
+  const m = gapMins % 60;
+  lines.push(`You were gone for ${h > 0 ? `${h}h ${m}m` : `${gapMins}m`}.`);
+
+  if (coinsEarned > 0)      lines.push(`🪙 Earned ${coinsEarned} coins while away.`);
+  if (scoreDelta > 5)       lines.push(`📈 Focus score improved by ${scoreDelta} pts!`);
+  else if (scoreDelta < -5) lines.push(`📉 Focus score dropped by ${Math.abs(scoreDelta)} pts.`);
+
+  const shuffled = [...FLAVOR_EVENTS].sort(() => Math.random() - 0.5);
+  const count    = Math.floor(Math.random() * 2) + 1;
+  shuffled.slice(0, count).forEach(f => lines.push(`✦ ${f}`));
+
+  body.innerHTML = lines.map(l => `<p>${l}</p>`).join('');
+  modal.classList.add('show');
+}
+
+async function checkAwayMessage(): Promise<void> {
+  try {
+    const data     = await chrome.storage.local.get(['popupLastSeen', 'awaySnap', 'coins', 'focusScore']);
+    const lastSeen = data['popupLastSeen'] as number | undefined;
+    const awaySnap = data['awaySnap']     as { coins: number; score: number } | undefined;
+    const coins    = (data['coins']       as number) ?? 0;
+    const score    = (data['focusScore']  as number) ?? 70;
+
+    if (lastSeen && awaySnap && Date.now() - lastSeen >= 5 * 60 * 1000) {
+      const gapMins    = Math.floor((Date.now() - lastSeen) / 60_000);
+      const coinsEarned = Math.max(0, Math.round((coins - awaySnap.coins) * 10) / 10);
+      const scoreDelta  = Math.round(score - awaySnap.score);
+      showAwayModal(gapMins, coinsEarned, scoreDelta);
+    }
+    // Save fresh snapshot so next open can compare
+    await chrome.storage.local.set({ popupLastSeen: Date.now(), awaySnap: { coins, score } });
+  } catch { /* outside extension context */ }
+}
+
+function saveAwaySnap(): void {
+  chrome.storage.local.set({
+    popupLastSeen: Date.now(),
+    awaySnap: { coins: gameState.lastCoins ?? 0, score: gameState.health },
+  }).catch(() => {});
+}
+
+document.getElementById('away-dismiss')!.addEventListener('click', () => {
+  document.getElementById('away-modal')!.classList.remove('show');
+});
+
+window.addEventListener('pagehide', saveAwaySnap);
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 loadAndApplyTheme();
@@ -309,6 +430,8 @@ initDebugPanel();
 initShopPane();
 initDailyBtn();
 initArrangeBtn();
+checkAwayMessage().catch(() => {});
+setInterval(saveAwaySnap, 5000); // keep snapshot fresh while popup is open
 
 render();
 initFoodSystem().then(() => {

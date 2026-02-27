@@ -69,6 +69,7 @@ export class Fish {
   bornAt:      number;
   deadTimer  = 0;   // frames elapsed since death
   deadAlpha  = 1.0; // fades to 0 after 5 s, then fish is archived
+  spurtFrames = 0;  // frames remaining in current growth spurt (0 = no spurt)
 
   constructor({ x, y, size = 22, speed = 1.0, hue = 150, type = 'basic',
                 stage = 'fry', id, entering = false, growth = 0, foodGrowth = 0,
@@ -180,13 +181,21 @@ export class Fish {
     }
     this.y += Math.sin(this.phase * 0.6) * 0.18;
 
-    // Time-based growth
+    // Time-based growth (with random spurt mechanic)
     if (this.stage === 'fry' || this.stage === 'juvenile') {
-      this.growth += (gameState.tankHealth / 100) * BASE_GROWTH_RATE * gameState.growthSpeed;
+      // ~0.2% chance per frame to trigger a 6-second 4× growth spurt
+      if (this.spurtFrames <= 0 && gameState.tankHealth > 35 && Math.random() < 0.002) {
+        this.spurtFrames = 360; // 6 s at 60 fps
+      }
+      const spurtMult = this.spurtFrames > 0 ? 4 : 1;
+      if (this.spurtFrames > 0) this.spurtFrames--;
+
+      this.growth += (gameState.tankHealth / 100) * BASE_GROWTH_RATE * gameState.growthSpeed * spurtMult;
       if (this.growth >= 100) {
         this.stage      = this.stage === 'fry' ? 'juvenile' : 'adult';
         this.growth     = 0;
         this.foodGrowth = 0;
+        this.spurtFrames = 0;
         this._applyStageSize();
         saveFish();
       }
@@ -773,6 +782,22 @@ export function render(): void {
 
   fish.sort((a, b) => a.size - b.size);
   fish.forEach(f => { f.update(W, H, gameState.tankHealth, foodPellets); f.draw(ctx, f.health); });
+
+  // Growth-spurt sparkles: small green crosshairs near spurting fry/juvenile
+  for (const f of fish) {
+    if (f.spurtFrames <= 0 || (f.stage !== 'fry' && f.stage !== 'juvenile')) continue;
+    if (Math.random() > 0.3) continue;
+    ctx.save();
+    ctx.globalAlpha = 0.5 + Math.random() * 0.45;
+    ctx.strokeStyle = '#88ff99';
+    ctx.lineWidth   = 1.2;
+    const sx = f.x + (Math.random() - 0.5) * f.size * 2.8;
+    const sy = f.y + (Math.random() - 0.5) * f.size * 2.8;
+    const ss = 2 + Math.random() * 2.5;
+    ctx.beginPath(); ctx.moveTo(sx, sy - ss); ctx.lineTo(sx, sy + ss); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx - ss, sy); ctx.lineTo(sx + ss, sy); ctx.stroke();
+    ctx.restore();
+  }
 
   // Batch-archive fully faded dead fish to graveyard (single storage write avoids race conditions)
   const toArchive: Fish[] = [];

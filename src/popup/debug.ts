@@ -51,7 +51,7 @@ export function initDebugPanel(): void {
   });
 
   document.getElementById('debug-fish-btn')!.addEventListener('click', () => {
-    const types: FishType[] = ['basic', 'long', 'round', 'angel', 'betta', 'dragon'];
+    const types: FishType[] = ['basic', 'long', 'round', 'angel', 'betta', 'dragon', 'seahorse'];
     spawnDropFish(types[Math.floor(Math.random() * types.length)]);
   });
 
