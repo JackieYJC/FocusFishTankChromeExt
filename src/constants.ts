@@ -21,10 +21,12 @@ export const GAME_BALANCE = {
   TICK_SECS:         5,
   DECAY:             1.5,   // score lost per tick on a distracting site
   GAIN:              0.4,   // score gained per tick on a focused site
-  SCORE_FLOOR:       50,    // focus score will never decay below this (fish stay healthy overnight)
   COIN_RATE:         10 / 12,  // ~0.833 coins per tick → 10 coins/min at focusScore 100
   IDLE_COIN_RATE:    0.1,      // passive coins/tick while idle/away (≈1.2 coins/min); fills 0→200 in ~2.8 h
   PASSIVE_COIN_CAP:  200,      // passive replenishment stops here; active focus earnings are uncapped
+  IDLE_TARGET:       70,       // score the tank drifts toward when outside work hours
+  IDLE_DRIFT_MAX:    15,       // max total movement from work-hours end score (e.g. 30→45, 90→75)
+  IDLE_SCORE_RATE:   0.05,     // drift per tick (~0.6 pts/min); reaches the cap in ≈25 min
   // One full growth stage in ~5 min of 100% focus at 60 fps (was 8 min)
   BASE_GROWTH_RATE:  100 / (5 * 60 * 60),
   FOOD_GROWTH_CAP:   35,    // max growth points per stage that can come from food

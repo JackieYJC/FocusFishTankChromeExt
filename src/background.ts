@@ -3,7 +3,9 @@
 import { DEFAULT_BLOCKLIST, DEFAULT_WORK_HOURS, GAME_BALANCE } from './constants';
 import type { WorkHours } from './types';
 
-const { TICK_SECS, DECAY, GAIN, SCORE_FLOOR, COIN_RATE, IDLE_COIN_RATE, PASSIVE_COIN_CAP } = GAME_BALANCE;
+const { TICK_SECS, DECAY, GAIN, COIN_RATE,
+        IDLE_COIN_RATE, PASSIVE_COIN_CAP,
+        IDLE_TARGET, IDLE_DRIFT_MAX, IDLE_SCORE_RATE } = GAME_BALANCE;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -66,7 +68,7 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
     // legacy keys — migrate on first tick if present
     'totalFocusMinutes', 'totalDistractedMinutes',
     'blocklist', 'workHours', 'coins', 'lastFocusDate',
-    'isDistracting', 'focusTicksSinceNotif',
+    'isDistracting', 'focusTicksSinceNotif', 'idleAnchor',
   ]);
 
   const blocklist            = (data['blocklist']            as string[])  ?? DEFAULT_BLOCKLIST;
@@ -109,22 +111,32 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   }
 
   // Time counters always update regardless of work hours.
-  // Outside work hours: passive coin accrual + score recovers to SCORE_FLOOR if below it.
+  // Outside work hours: passive coin accrual + score drifts toward IDLE_TARGET,
+  // but movement is capped at ±IDLE_DRIFT_MAX from the last work-hours score (idleAnchor).
   if (!isWithinWorkHours(workHours)) {
-    const coinsOow    = (data['coins']      as number) ?? 0;
-    const scoreOow    = (data['focusScore'] as number) ?? 70;
-    const idleGain    = coinsOow < PASSIVE_COIN_CAP ? IDLE_COIN_RATE : 0;
-    const newCoinsOow = Math.round((coinsOow + idleGain) * 1000) / 1000;
-    // Clamp score up to the baseline floor so fish recover overnight
-    const newScoreOow = Math.max(SCORE_FLOOR, scoreOow);
+    const coinsOow   = (data['coins']      as number) ?? 0;
+    const scoreOow   = (data['focusScore'] as number) ?? IDLE_TARGET;
+    // idleAnchor is set at the end of each work-hours tick; defaults to current score
+    const anchor     = (data['idleAnchor'] as number) ?? scoreOow;
+    const idleGain   = coinsOow < PASSIVE_COIN_CAP ? IDLE_COIN_RATE : 0;
+    const newCoins   = Math.round((coinsOow + idleGain) * 1000) / 1000;
+    // Compute drift ceiling/floor: move toward 70 but no more than ±15 from anchor
+    const idleCap    = anchor < IDLE_TARGET
+      ? Math.min(anchor + IDLE_DRIFT_MAX, IDLE_TARGET)   // e.g. anchor=30 → cap=45
+      : Math.max(anchor - IDLE_DRIFT_MAX, IDLE_TARGET);  // e.g. anchor=90 → cap=75
+    const newScore   = idleCap > scoreOow
+      ? Math.min(scoreOow + IDLE_SCORE_RATE, idleCap)
+      : idleCap < scoreOow
+        ? Math.max(scoreOow - IDLE_SCORE_RATE, idleCap)
+        : scoreOow;
     await chrome.storage.local.set({
       focusSecs:      newFocusSecs,
       distractedSecs: newDistractSecs,
       isDistracting:  distracting,
       currentSite:    site,
       lastFocusDate:  today,
-      coins:          newCoinsOow,
-      focusScore:     newScoreOow,
+      coins:          newCoins,
+      focusScore:     Math.round(newScore * 1000) / 1000,
     });
     return;
   }
@@ -166,13 +178,14 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   }
 
   await chrome.storage.local.set({
-    focusScore:          newScore,
-    focusSecs:           newFocusSecs,
-    distractedSecs:      newDistractSecs,
-    isDistracting:       distracting,
-    currentSite:         site,
-    coins:               newCoins,
-    lastFocusDate:       today,
+    focusScore:           newScore,
+    idleAnchor:           newScore,  // track last work-hours score for idle drift reference
+    focusSecs:            newFocusSecs,
+    distractedSecs:       newDistractSecs,
+    isDistracting:        distracting,
+    currentSite:          site,
+    coins:                newCoins,
+    lastFocusDate:        today,
     focusTicksSinceNotif: newFocusTicks,
   });
 });
