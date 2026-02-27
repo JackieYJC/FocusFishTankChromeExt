@@ -522,17 +522,181 @@ function drawDragonShape(
   }
 }
 
+function drawSeahorseShape(
+  ctx: CanvasRenderingContext2D, s: number, wag: number,
+  c: DrawColors, health?: number,
+): void {
+  // Seahorse: body tilted ~25°, head at upper-+X end, curled tail at -X end.
+
+  // ── Curled prehensile tail (double-stroke: dark outline + col fill) ──
+  const tailPath = (): void => {
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.42, s * 0.10);
+    ctx.bezierCurveTo(
+      -s * 0.76, s * 0.20 + wag * 0.35,
+      -s * 0.86, s * 0.55 + wag * 0.55,
+      -s * 0.56, s * 0.70 + wag * 0.75,
+    );
+    ctx.bezierCurveTo(
+      -s * 0.24, s * 0.80 + wag * 0.50,
+      -s * 0.10, s * 0.52 + wag * 0.22,
+      -s * 0.28, s * 0.36 + wag * 0.10,
+    );
+  };
+  ctx.lineCap = 'round';
+  tailPath(); ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.22; ctx.stroke();
+  tailPath(); ctx.strokeStyle = c.col;  ctx.lineWidth = s * 0.13; ctx.stroke();
+
+  // ── Body (tilted oval) ──
+  if (health !== undefined) applyGlow(ctx, c.hue, health, s);
+  const bg = ctx.createRadialGradient(s * 0.10, -s * 0.08, s * 0.04, 0, 0, s * 0.70);
+  bg.addColorStop(0,    c.highlight);
+  bg.addColorStop(0.40, c.col);
+  bg.addColorStop(1,    c.dark);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 0.38, s * 0.54, -0.44, 0, Math.PI * 2);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.04; ctx.stroke();
+
+  // ── Armor rings (bony plates) ──
+  ctx.globalAlpha = 0.26;
+  ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.024;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.ellipse(-s * 0.12 + i * s * 0.12, s * 0.22 - i * s * 0.19, s * 0.21, s * 0.055, -0.44, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Dorsal fin ──
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.10, -s * 0.42);
+  ctx.bezierCurveTo(s * 0.02, -s * 0.68, s * 0.14, -s * 0.70, s * 0.22, -s * 0.46);
+  ctx.globalAlpha = 0.68; ctx.fillStyle = c.dark; ctx.fill(); ctx.globalAlpha = 1;
+
+  // ── Head (round bulge) ──
+  const hx = s * 0.22, hy = -s * 0.46;
+  const hg = ctx.createRadialGradient(hx + s * 0.04, hy - s * 0.06, 0, hx, hy, s * 0.22);
+  hg.addColorStop(0, c.highlight); hg.addColorStop(0.5, c.col); hg.addColorStop(1, c.dark);
+  ctx.beginPath(); ctx.arc(hx, hy, s * 0.22, 0, Math.PI * 2);
+  ctx.fillStyle = hg; ctx.fill();
+  ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.04; ctx.stroke();
+
+  // ── Snout (tapering tube angled forward-up) ──
+  ctx.beginPath();
+  ctx.moveTo(hx + s * 0.16, hy - s * 0.05);
+  ctx.lineTo(hx + s * 0.62, hy - s * 0.28);
+  ctx.lineTo(hx + s * 0.60, hy - s * 0.18);
+  ctx.lineTo(hx + s * 0.14, hy + s * 0.04);
+  ctx.closePath();
+  ctx.fillStyle = c.col; ctx.fill();
+  ctx.strokeStyle = c.dark; ctx.lineWidth = s * 0.03; ctx.stroke();
+
+  // ── Coronet spines (3 small triangles on top of head) ──
+  for (let i = 0; i < 3; i++) {
+    const spX = hx - s * 0.10 + i * s * 0.10;
+    const spH = s * (0.20 - i * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(spX - s * 0.04, hy - s * 0.20);
+    ctx.lineTo(spX,             hy - s * 0.20 - spH);
+    ctx.lineTo(spX + s * 0.04, hy - s * 0.20);
+    ctx.closePath();
+    ctx.fillStyle = c.dark; ctx.fill();
+  }
+
+  // ── Sick tint ──
+  if (health !== undefined && health < 20) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.38, s * 0.54, -0.44, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(80,200,60,${0.18 + (20 - health) / 100})`; ctx.fill();
+  }
+
+  // ── Eye ──
+  drawEye(ctx, hx - s * 0.02, hy + s * 0.04, s * 0.12, c.hue);
+
+  // ── Expression (near snout tip) ──
+  if (health !== undefined) {
+    ctx.lineWidth = s * 0.05; ctx.strokeStyle = c.dark; ctx.lineCap = 'round';
+    if      (health < 35) { ctx.beginPath(); ctx.arc(hx + s*0.36, hy - s*0.22, s*0.07, 0.15, Math.PI-0.15);       ctx.stroke(); }
+    else if (health > 68) { ctx.beginPath(); ctx.arc(hx + s*0.36, hy - s*0.24, s*0.07, 0.15, Math.PI-0.15, true); ctx.stroke(); }
+  }
+}
+
 /** Eye centre for X-eye overlay on dead fish (non-flipped screen pass). */
 function eyePos(type: FishType, s: number): { ex: number; ey: number; eyeR: number } {
-  if (type === 'long')   return { ex: s * 0.78, ey: s * 0.06, eyeR: s * 0.09 };
-  if (type === 'round')  return { ex: s * 0.48, ey: s * 0.18, eyeR: s * 0.11 };
-  if (type === 'angel')  return { ex: s * 0.42, ey: s * 0.10, eyeR: s * 0.09 };
-  if (type === 'betta')  return { ex: s * 0.50, ey: s * 0.24, eyeR: s * 0.10 }; // tang eye is high
-  if (type === 'dragon') return { ex: s * 0.56, ey: s * 0.08, eyeR: s * 0.11 };
-  return                        { ex: s * 0.58, ey: s * 0.07, eyeR: s * 0.10 };
+  if (type === 'long')     return { ex: s * 0.78, ey:  s * 0.06, eyeR: s * 0.09 };
+  if (type === 'round')    return { ex: s * 0.48, ey:  s * 0.18, eyeR: s * 0.11 };
+  if (type === 'angel')    return { ex: s * 0.42, ey:  s * 0.10, eyeR: s * 0.09 };
+  if (type === 'betta')    return { ex: s * 0.50, ey:  s * 0.24, eyeR: s * 0.10 };
+  if (type === 'dragon')   return { ex: s * 0.56, ey:  s * 0.08, eyeR: s * 0.11 };
+  if (type === 'seahorse') return { ex: s * 0.20, ey: -s * 0.42, eyeR: s * 0.07 };
+  return                          { ex: s * 0.58, ey:  s * 0.07, eyeR: s * 0.10 };
 }
 
 // ── Public drawing functions ───────────────────────────────────────────────
+
+/** Fry variant for seahorse: tiny upright seahorse with curled tail, snout, and eye glint. */
+function drawSeahorseFry(ctx: CanvasRenderingContext2D, s: number, wag: number): void {
+  const col   = 'hsl(175,58%,48%)';
+  const dark  = 'hsl(175,58%,30%)';
+  const belly = 'hsla(175,45%,78%,0.52)';
+
+  // Curled prehensile tail (stroke pair: dark outline + col fill)
+  const tailPath = (): void => {
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.30, s * 0.08 + wag * 0.05);
+    ctx.bezierCurveTo(
+      -s * 0.60, s * 0.22 + wag * 0.32,
+      -s * 0.68, s * 0.50 + wag * 0.50,
+      -s * 0.44, s * 0.62 + wag * 0.65,
+    );
+    ctx.bezierCurveTo(
+      -s * 0.20, s * 0.70 + wag * 0.42,
+      -s * 0.06, s * 0.46 + wag * 0.18,
+      -s * 0.20, s * 0.32 + wag * 0.06,
+    );
+  };
+  ctx.lineCap = 'round';
+  tailPath(); ctx.strokeStyle = dark; ctx.lineWidth = s * 0.24; ctx.stroke();
+  tailPath(); ctx.strokeStyle = col;  ctx.lineWidth = s * 0.13; ctx.stroke();
+
+  // Body: tilted oval (upright seahorse profile, same tilt as adult)
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 0.28, s * 0.42, -0.44, 0, Math.PI * 2);
+  ctx.fillStyle = col; ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = s * 0.04; ctx.stroke();
+
+  // Belly glint
+  ctx.beginPath();
+  ctx.ellipse(s * 0.05, s * 0.06, s * 0.13, s * 0.22, -0.44, 0, Math.PI * 2);
+  ctx.fillStyle = belly; ctx.fill();
+
+  // Head (round bulge at top of body)
+  const hx = s * 0.16, hy = -s * 0.40;
+  ctx.beginPath(); ctx.arc(hx, hy, s * 0.19, 0, Math.PI * 2);
+  ctx.fillStyle = col; ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = s * 0.04; ctx.stroke();
+
+  // Snout (tapering tube angled forward-up)
+  ctx.beginPath();
+  ctx.moveTo(hx + s * 0.13, hy - s * 0.05);
+  ctx.lineTo(hx + s * 0.50, hy - s * 0.22);
+  ctx.lineTo(hx + s * 0.48, hy - s * 0.12);
+  ctx.lineTo(hx + s * 0.11, hy + s * 0.04);
+  ctx.closePath();
+  ctx.fillStyle = col; ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = s * 0.03; ctx.stroke();
+
+  // Eye (small, has glint)
+  const ex = hx - s * 0.01, ey = hy + s * 0.04;
+  ctx.beginPath(); ctx.arc(ex, ey, s * 0.12, 0, Math.PI * 2);
+  ctx.fillStyle = 'white'; ctx.fill();
+  ctx.beginPath(); ctx.arc(ex + s * 0.02, ey, s * 0.08, 0, Math.PI * 2);
+  ctx.fillStyle = '#111'; ctx.fill();
+  ctx.beginPath(); ctx.arc(ex - s * 0.03, ey - s * 0.04, s * 0.04, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.86)'; ctx.fill();
+}
 
 /** Fry: uniform species-agnostic teardrop, teal, with belly glint and eye specular. */
 export function drawFry(ctx: CanvasRenderingContext2D, s: number, wag: number): void {
@@ -579,16 +743,21 @@ export function drawLiveFish(
   type: FishType, stage: FishStage, hue: number,
   s: number, wag: number, health: number,
 ): void {
-  if (stage === 'fry') { drawFry(ctx, s, wag); return; }
+  if (stage === 'fry') {
+    if (type === 'seahorse') drawSeahorseFry(ctx, s, wag);
+    else drawFry(ctx, s, wag);
+    return;
+  }
 
   const colors = stage === 'juvenile' ? juvenileColors(hue) : adultColors(hue, health);
 
-  if      (type === 'long')   drawLongShape  (ctx, s, wag, colors, health);
-  else if (type === 'round')  drawRoundShape (ctx, s, wag, colors, health);
-  else if (type === 'angel')  drawAngelShape (ctx, s, wag, colors, health);
-  else if (type === 'betta')  drawBettaShape (ctx, s, wag, colors, health);
-  else if (type === 'dragon') drawDragonShape(ctx, s, wag, colors, health);
-  else                        drawBasicShape (ctx, s, wag, colors, health);
+  if      (type === 'long')     drawLongShape    (ctx, s, wag, colors, health);
+  else if (type === 'round')    drawRoundShape   (ctx, s, wag, colors, health);
+  else if (type === 'angel')    drawAngelShape   (ctx, s, wag, colors, health);
+  else if (type === 'betta')    drawBettaShape   (ctx, s, wag, colors, health);
+  else if (type === 'dragon')   drawDragonShape  (ctx, s, wag, colors, health);
+  else if (type === 'seahorse') drawSeahorseShape(ctx, s, wag, colors, health);
+  else                          drawBasicShape   (ctx, s, wag, colors, health);
 }
 
 /**
@@ -604,12 +773,13 @@ export function drawDeadFish(
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(facing, -1);
-  if      (type === 'long')   drawLongShape  (ctx, s, wag, GRAY);
-  else if (type === 'round')  drawRoundShape (ctx, s, wag, GRAY);
-  else if (type === 'angel')  drawAngelShape (ctx, s, wag, GRAY);
-  else if (type === 'betta')  drawBettaShape (ctx, s, wag, GRAY);
-  else if (type === 'dragon') drawDragonShape(ctx, s, wag, GRAY);
-  else                        drawBasicShape (ctx, s, wag, GRAY);
+  if      (type === 'long')     drawLongShape    (ctx, s, wag, GRAY);
+  else if (type === 'round')    drawRoundShape   (ctx, s, wag, GRAY);
+  else if (type === 'angel')    drawAngelShape   (ctx, s, wag, GRAY);
+  else if (type === 'betta')    drawBettaShape   (ctx, s, wag, GRAY);
+  else if (type === 'dragon')   drawDragonShape  (ctx, s, wag, GRAY);
+  else if (type === 'seahorse') drawSeahorseShape(ctx, s, wag, GRAY);
+  else                          drawBasicShape   (ctx, s, wag, GRAY);
   ctx.restore();
 
   // X eyes — separate non-flipped pass
@@ -648,25 +818,28 @@ export function drawFishPreview(
   const cx = cW / 2;
   const cy = cH / 2;
   // Size: angel/dragon need more vertical room; tang (betta) has tall fins; long is wide
-  const s  = type === 'long'   ? Math.round(cH * 0.30)
-           : type === 'angel'  ? Math.round(cH * 0.24)
-           : type === 'betta'  ? Math.round(cH * 0.24)  // tall dorsal fin needs room
-           : type === 'dragon' ? Math.round(cH * 0.20)  // crown spines need vertical room
+  const s  = type === 'long'      ? Math.round(cH * 0.30)
+           : type === 'angel'     ? Math.round(cH * 0.24)
+           : type === 'betta'     ? Math.round(cH * 0.24)  // tall dorsal fin needs room
+           : type === 'dragon'    ? Math.round(cH * 0.20)  // crown spines need vertical room
+           : type === 'seahorse'  ? Math.round(cH * 0.22)  // tall + wide with snout/tail
            : Math.round(cH * 0.36);
 
   ctx.save();
   ctx.translate(cx, cy);
 
   if (stage === 'fry') {
-    drawFry(ctx, Math.round(cH * 0.22), 0);
+    if (type === 'seahorse') drawSeahorseFry(ctx, Math.round(cH * 0.22), 0);
+    else drawFry(ctx, Math.round(cH * 0.22), 0);
   } else if (stage === 'dead') {
     ctx.scale(1, -1);
-    if      (type === 'long')   drawLongShape  (ctx, s, 0, GRAY);
-    else if (type === 'round')  drawRoundShape (ctx, s, 0, GRAY);
-    else if (type === 'angel')  drawAngelShape (ctx, s, 0, GRAY);
-    else if (type === 'betta')  drawBettaShape (ctx, s, 0, GRAY);
-    else if (type === 'dragon') drawDragonShape(ctx, s, 0, GRAY);
-    else                        drawBasicShape (ctx, s, 0, GRAY);
+    if      (type === 'long')      drawLongShape      (ctx, s, 0, GRAY);
+    else if (type === 'round')     drawRoundShape     (ctx, s, 0, GRAY);
+    else if (type === 'angel')     drawAngelShape     (ctx, s, 0, GRAY);
+    else if (type === 'betta')     drawBettaShape     (ctx, s, 0, GRAY);
+    else if (type === 'dragon')    drawDragonShape    (ctx, s, 0, GRAY);
+    else if (type === 'seahorse')  drawSeahorseShape  (ctx, s, 0, GRAY);
+    else                           drawBasicShape     (ctx, s, 0, GRAY);
     ctx.scale(1, -1); // restore for X eyes
     const { ex, ey, eyeR } = eyePos(type, s);
     ctx.strokeStyle = '#333'; ctx.lineWidth = Math.max(1, s * 0.07); ctx.lineCap = 'round';
@@ -677,12 +850,13 @@ export function drawFishPreview(
   } else {
     const drawHue = stage === 'juvenile' ? Math.round(175 + (hue - 175) * 0.5) : hue;
     const colors  = adultColors(drawHue, 100); // full health for preview
-    if      (type === 'long')   drawLongShape  (ctx, s, 0, colors, 100);
-    else if (type === 'round')  drawRoundShape (ctx, s, 0, colors, 100);
-    else if (type === 'angel')  drawAngelShape (ctx, s, 0, colors, 100);
-    else if (type === 'betta')  drawBettaShape (ctx, s, 0, colors, 100);
-    else if (type === 'dragon') drawDragonShape(ctx, s, 0, colors, 100);
-    else                        drawBasicShape (ctx, s, 0, colors, 100);
+    if      (type === 'long')      drawLongShape      (ctx, s, 0, colors, 100);
+    else if (type === 'round')     drawRoundShape     (ctx, s, 0, colors, 100);
+    else if (type === 'angel')     drawAngelShape     (ctx, s, 0, colors, 100);
+    else if (type === 'betta')     drawBettaShape     (ctx, s, 0, colors, 100);
+    else if (type === 'dragon')    drawDragonShape    (ctx, s, 0, colors, 100);
+    else if (type === 'seahorse')  drawSeahorseShape  (ctx, s, 0, colors, 100);
+    else                           drawBasicShape     (ctx, s, 0, colors, 100);
   }
 
   ctx.restore();

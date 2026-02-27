@@ -2,7 +2,7 @@
 
 import { gameState, fish, saveFish, initFish, checkPendingFish, decorations, saveDecorations } from './tank';
 import type { AppState, FishSnapshot, DecorationSnapshot }                                     from '../types';
-import { DEFAULT_BLOCKLIST }                                                                    from '../constants';
+import { DEFAULT_BLOCKLIST, GAME_BALANCE }                                                      from '../constants';
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -78,6 +78,32 @@ export function applyState({ focusScore = 70, focusSecs = 0,
     if (delta > 0.005) spawnCoinFloat(`+${delta.toFixed(2)}`);
   }
   gameState.lastCoins = coins;
+  _coinFocusScore  = focusScore;
+  _coinDistracted  = isDistracting;
+  updateCoinNextUI();
+
+  // Notify mission banner of state change
+  document.dispatchEvent(new CustomEvent('state-applied', { detail: { isDistracting } }));
+}
+
+// ─── Coin countdown ───────────────────────────────────────────────────────────
+
+let _coinLastTick   = 0;   // Date.now() of last confirmed coin accrual
+let _coinFocusScore = 70;  // latest focusScore for rate calculation
+let _coinDistracted = false;
+
+function updateCoinNextUI(): void {
+  const el = document.getElementById('coin-next');
+  if (!el) return;
+  if (_coinDistracted) { el.textContent = '⏸ paused'; return; }
+  const coinsPerMin = Math.round((_coinFocusScore / 100) * 10);
+  if (_coinLastTick > 0) {
+    const elapsed  = (Date.now() - _coinLastTick) / 1000;
+    const secsLeft = Math.max(1, Math.ceil(60 - (elapsed % 60)));
+    el.textContent = `+${coinsPerMin} in ${secsLeft}s`;
+  } else {
+    el.textContent = `+${coinsPerMin} / 60s`;
+  }
 }
 
 // ─── Local second tracking (storage only updates every TICK_SECS) ─────────────
@@ -110,6 +136,7 @@ export function tickLocalSeconds(): void {
   if (_rtDistracted) _localDistSecs  += 1;
   document.getElementById('focus-time')!.textContent      = fmtTime(Math.floor(_localFocusSecs));
   document.getElementById('distracted-time')!.textContent = fmtTime(Math.floor(_localDistSecs));
+  updateCoinNextUI();
 }
 
 // ─── Poll ─────────────────────────────────────────────────────────────────────
@@ -153,6 +180,7 @@ export async function poll(): Promise<void> {
       _lastKnownDate        = new Date().toLocaleDateString('en-CA');
       _lastStorageFocusSecs = focusSecs;
       _lastStorageDistSecs  = distractedSecs;
+      _coinLastTick         = Date.now(); // start countdown from popup open
     } else {
       // Allow downward sync when background performed a midnight reset
       // (storage dropped below last known storage value → background cleared it)

@@ -21,20 +21,21 @@ export const GAME_BALANCE = {
   TICK_SECS:         5,
   DECAY:             1.5,   // score lost per tick on a distracting site
   GAIN:              0.4,   // score gained per tick on a focused site
-  COIN_RATE:         0.2,   // coins per tick at focusScore 100, scales linearly
-  // One full growth stage in ~8 min of 100% focus at 60 fps
-  BASE_GROWTH_RATE:  100 / (8 * 60 * 60),
+  COIN_RATE:         10 / 12,  // ~0.833 coins per tick → 10 coins/min at focusScore 100
+  // One full growth stage in ~5 min of 100% focus at 60 fps (was 8 min)
+  BASE_GROWTH_RATE:  100 / (5 * 60 * 60),
   FOOD_GROWTH_CAP:   35,    // max growth points per stage that can come from food
   FOOD_GROWTH_BONUS: 5,     // growth points per pellet eaten
 } as const;
 
 export const SPECIES_HUE: Record<FishType, number> = {
-  basic: 155,   // green
-  long:  195,   // teal/cyan  (was 20 — too close to dragon's orange)
-  round: 310,   // hot pink   (was 280 — too close to betta's blue)
-  angel:  45,   // gold
-  betta: 235,   // clear blue (was 260 — too purple, too close to round)
-  dragon: 15,   // orange-red
+  basic:    155,   // green
+  long:     195,   // teal/cyan
+  round:    310,   // hot pink
+  angel:     45,   // gold
+  betta:    235,   // clear blue
+  dragon:    15,   // orange-red
+  seahorse: 280,   // purple-violet
 };
 
 export const STAGE_SIZE_FACTORS: Record<string, number> = {
@@ -42,7 +43,7 @@ export const STAGE_SIZE_FACTORS: Record<string, number> = {
 };
 
 export const DEFAULT_FISH_SIZES: Record<FishType, number> = {
-  basic: 36, long: 33, round: 32, angel: 34, betta: 32, dragon: 34,
+  basic: 36, long: 33, round: 32, angel: 34, betta: 32, dragon: 34, seahorse: 30,
 };
 
 // ─── Food system ──────────────────────────────────────────────────────────────
@@ -64,8 +65,9 @@ export const SHOP_ITEMS: ShopItem[] = [
   { type: 'long',   name: 'Tetra',     desc: 'Sleek, fast, forked tail',                    cost: 60  },
   { type: 'round',  name: 'Puffer',    desc: 'Chubby, spiky, big personality',              cost: 100 },
   { type: 'angel',  name: 'Angelfish', desc: 'Elegant, tall-bodied, glides serenely',       cost: 80  },
-  { type: 'betta',  name: 'Tang',      desc: 'Deep-bodied reef warrior with a scalpel tail', cost: 120 },
-  { type: 'dragon', name: 'Dragonfish', desc: '✦ Rare · Lionfish-like crown of venomous spines', cost: 480 },
+  { type: 'betta',    name: 'Tang',      desc: 'Deep-bodied reef warrior with a scalpel tail',      cost: 120 },
+  { type: 'seahorse', name: 'Seahorse',  desc: '✦ Rare · Armoured, slow-swimming, curly-tailed',    cost: 350 },
+  { type: 'dragon',   name: 'Dragonfish', desc: '✦ Rare · Lionfish-like crown of venomous spines',  cost: 480 },
 ];
 
 // ─── Decoration shop ──────────────────────────────────────────────────────────
