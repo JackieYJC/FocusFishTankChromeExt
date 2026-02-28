@@ -99,9 +99,8 @@ chrome.alarms.onAlarm.addListener(async ({ name }) => {
   const newDistractSecs = distractedSecs + (distracting ? TICK_SECS : 0);
 
   // ── Distraction alert ─────────────────────────────────────────────────────
-  // Fires once when the user first lands on a blocked site.
-  // Runs BEFORE the work-hours gate so it always triggers, even outside work hours.
-  if (!prevIsDistracting && distracting) {
+  // Only fires during work hours — no point nagging when there's no score penalty.
+  if (!prevIsDistracting && distracting && isWithinWorkHours(workHours)) {
     chrome.notifications.create('distraction', {
       type:    'basic',
       iconUrl: 'icons/icon48.png',

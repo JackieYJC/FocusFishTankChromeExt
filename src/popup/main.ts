@@ -316,13 +316,30 @@ function initDailyBtn(): void {
 
 let _bannerTimer: ReturnType<typeof setTimeout> | undefined;
 let _lastBannerState = '';
+let _withinWorkHours = true;
 
-function updateMissionBanner(isDistracting: boolean): void {
+function updateMissionBanner(isDistracting: boolean, withinWorkHours: boolean): void {
   const supply = gameState.foodSupply;
   let msg      = '';
   let stateKey = '';
 
-  if (isDistracting && supply <= 0) {
+  if (!withinWorkHours) {
+    // Off-hours: no score penalty, so never nag about distracting sites.
+    // Only show food-related messages.
+    if (supply <= 0 && isDistracting) {
+      stateKey = 'nofood_oow_dist';
+      msg = "🥘 Out of food — switch to another tab and it'll replenish.";
+    } else if (supply <= 0) {
+      stateKey = 'nofood_oow';
+      msg = "🥘 Out of food — it's refilling now, hang tight!";
+    } else if (supply < 4) {
+      stateKey = 'lowfood';
+      msg = "🥘 Food is running low — click the tank to feed your fish!";
+    } else {
+      _lastBannerState = 'ok';
+      return;
+    }
+  } else if (isDistracting && supply <= 0) {
     stateKey = 'distracted_nofood';
     msg = "⚠️ You're distracted and out of food — focus to replenish!";
   } else if (isDistracting) {
@@ -350,14 +367,16 @@ function updateMissionBanner(isDistracting: boolean): void {
 }
 
 document.addEventListener('state-applied', (e) => {
-  const { isDistracting } = (e as CustomEvent<{ isDistracting: boolean }>).detail;
+  const { isDistracting, withinWorkHours } =
+    (e as CustomEvent<{ isDistracting: boolean; withinWorkHours: boolean }>).detail;
   // When returning to focus from distraction, anchor the food refill timer to now
   if (_rtDistracted && !isDistracting && gameState.foodSupply < MAX_FOOD) {
     gameState.foodLastRefill = Date.now();
     chrome.storage.local.set({ foodLastRefill: gameState.foodLastRefill }).catch(() => {});
   }
-  _rtDistracted = isDistracting;
-  updateMissionBanner(isDistracting);
+  _rtDistracted    = isDistracting;
+  _withinWorkHours = withinWorkHours;
+  updateMissionBanner(isDistracting, withinWorkHours);
 });
 
 // ─── While you were away ───────────────────────────────────────────────────────

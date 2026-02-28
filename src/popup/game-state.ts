@@ -109,7 +109,7 @@ export function applyState({ focusScore = 70, focusSecs = 0,
   updateCoinNextUI();
 
   // Notify mission banner of state change
-  document.dispatchEvent(new CustomEvent('state-applied', { detail: { isDistracting } }));
+  document.dispatchEvent(new CustomEvent('state-applied', { detail: { isDistracting, withinWorkHours } }));
 }
 
 // ─── Coin countdown ───────────────────────────────────────────────────────────
