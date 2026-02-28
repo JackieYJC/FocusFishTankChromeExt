@@ -124,11 +124,11 @@ function updateCoinNextUI(): void {
   if (!el) return;
 
   if (!_coinWithinWorkHours) {
-    // Outside work hours: only passive drip — 0.1 coins/tick × 5s/tick = 1 coin/50s = 5 coins/250s
-    const secsFor5 = (5 / IDLE_COIN_RATE) * TICK_SECS; // 250 s
+    // Outside work hours: only passive drip — 0.1 coins/tick × 5s/tick = 1 coin/50s
+    const secsFor1 = (1 / IDLE_COIN_RATE) * TICK_SECS; // 50 s
     const elapsed  = _coinLastTick > 0 ? (Date.now() - _coinLastTick) / 1000 : 0;
-    const secsLeft = Math.max(1, Math.ceil(secsFor5 - (elapsed % secsFor5)));
-    el.textContent = `+5 in ${secsLeft}s`;
+    const secsLeft = Math.max(1, Math.ceil(secsFor1 - (elapsed % secsFor1)));
+    el.textContent = `+1 in ${secsLeft}s`;
     return;
   }
 
