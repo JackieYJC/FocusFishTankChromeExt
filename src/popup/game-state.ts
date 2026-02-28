@@ -122,14 +122,18 @@ let _coinWithinWorkHours = true; // false = outside work hours
 function updateCoinNextUI(): void {
   const el = document.getElementById('coin-next');
   if (!el) return;
-  // Off-hours: coins still trickle passively even when on a blocked site
-  if (_coinDistracted && _coinWithinWorkHours) { el.textContent = '⏸ paused'; return; }
-  if (_coinDistracted && !_coinWithinWorkHours) {
-    // Passive drip: IDLE_COIN_RATE per tick → coins per minute
-    const passivePerMin = Math.round(IDLE_COIN_RATE * (60 / TICK_SECS) * 10) / 10;
-    el.textContent = `~${passivePerMin}/min`;
+
+  if (!_coinWithinWorkHours) {
+    // Outside work hours: only passive drip — 0.1 coins/tick × 5s/tick = 1 coin/50s = 5 coins/250s
+    const secsFor5 = (5 / IDLE_COIN_RATE) * TICK_SECS; // 250 s
+    const elapsed  = _coinLastTick > 0 ? (Date.now() - _coinLastTick) / 1000 : 0;
+    const secsLeft = Math.max(1, Math.ceil(secsFor5 - (elapsed % secsFor5)));
+    el.textContent = `+5 in ${secsLeft}s`;
     return;
   }
+
+  if (_coinDistracted) { el.textContent = '⏸ paused'; return; }
+
   const coinsPerMin = Math.round((_coinFocusScore / 100) * 10);
   if (_coinLastTick > 0) {
     const elapsed  = (Date.now() - _coinLastTick) / 1000;
